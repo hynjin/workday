@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
-import { addWorkdayItem, startFocus, startWorkday, toggleItemComplete } from "@/lib/actions";
+import { startFocus, startWorkday, toggleItemComplete } from "@/lib/actions";
 import { getOrCreateCurrentWorkday, getWorkdayView } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { formatDuration, formatWorkdayDate } from "@/lib/workday-date";
@@ -27,7 +27,6 @@ async function Planning({ workdayId }: { workdayId: string }) {
     <div className="planningSolo">
       <section className="panel todayPanel"><div className="sectionTitle"><h2>이번 작업일 할 일</h2><Link className="textButton accent" href="/library">전체 목록에서 고르기</Link></div>
         {carried.length > 0 && <div className="carryBox"><strong>이어서 할 일</strong>{carried.map((item) => <span key={item.id}>{item.title}</span>)}</div>}
-        <form action={addWorkdayItem} className="rowForm"><input type="hidden" name="workdayId" value={view.id}/><label className="sr-only" htmlFor="quick-title">즉흥 작업 제목</label><input id="quick-title" name="title" placeholder="직접 추가할 일" maxLength={120} required/><SubmitButton>추가</SubmitButton></form>
         <div className="todayList">{view.items.map((item) => <div className="todayItem" key={item.id}><span>{item.title}</span>{item.taskId ? <small>전체 목록에서 추가</small> : <small>직접 추가</small>}</div>)}{!view.items.length && <p className="empty">오늘 할 일을 추가하면 여기에 표시됩니다.</p>}</div>
         <form action={startWorkday}><input type="hidden" name="workdayId" value={view.id}/><button className="button full" disabled={!view.items.length}>작업일 시작</button></form>
       </section>
@@ -45,7 +44,7 @@ async function Active({ workdayId }: { workdayId: string }) {
         <div><h3>{item.title}</h3><p>오늘 누적 <strong>{formatDuration(item.seconds)}</strong></p></div>
         <div className="actions"><form action={startFocus}><input type="hidden" name="itemId" value={item.id}/><SubmitButton secondary>집중 시작</SubmitButton></form><form action={toggleItemComplete}><input type="hidden" name="itemId" value={item.id}/><SubmitButton>{item.status === "completed" ? "완료 취소" : "완료"}</SubmitButton></form></div>
       </article>)}</div>
-      <details className="addDuring"><summary>+ 할 일 추가</summary><form action={addWorkdayItem} className="rowForm"><input type="hidden" name="workdayId" value={view.id}/><label className="sr-only" htmlFor="during-title">새 작업 제목</label><input id="during-title" name="title" placeholder="지금 추가할 일" maxLength={120} required/><SubmitButton>추가</SubmitButton></form></details>
+      <Link className="addTaskLink" href="/library">+ 할 일 추가 · 전체 목록에서 관리</Link>
     </section>
     <div className="footerAction"><Link className="button secondary" href="/library">전체 목록 · 작업 준비</Link><Link className="button secondary" href="/summary">작업일 요약</Link></div>
   </main>;

@@ -27,6 +27,14 @@ export async function updateCategory(form: FormData) {
   await prisma.taskCategory.update({ where: { id }, data: { title } });
   revalidatePath("/library");
 }
+export async function deleteCategory(form: FormData) {
+  const id = idFrom(form, "categoryId");
+  await prisma.$transaction(async (tx) => {
+    await tx.task.deleteMany({ where: { categoryId: id } });
+    await tx.taskCategory.delete({ where: { id } });
+  });
+  revalidatePath("/library");
+}
 export async function archiveCategory(form: FormData) {
   await prisma.taskCategory.update({ where: { id: idFrom(form, "categoryId") }, data: { status: "archived", archivedAt: new Date() } });
   revalidatePath("/library");
@@ -49,8 +57,12 @@ export async function updateTask(form: FormData) {
   const task = await prisma.task.findUniqueOrThrow({ where: { id } });
   const duplicate = await prisma.task.findFirst({ where: { categoryId: task.categoryId, title: { equals: title, mode: "insensitive" }, NOT: { id } } });
   if (duplicate) throw new Error("이 카테고리에 같은 이름의 작업이 이미 있습니다.");
-  await prisma.task.update({ where: { id, status: "active" }, data: { title } });
+  await prisma.$transaction(async (tx) => {
+    await tx.task.update({ where: { id, status: "active" }, data: { title } });
+    await tx.workdayItem.updateMany({ where: { taskId: id, title: task.title, workday: { status: { in: ["planning", "active"] } } }, data: { title } });
+  });
   revalidatePath("/library");
+  revalidatePath("/");
 }
 export async function archiveTask(form: FormData) {
   await prisma.task.update({ where: { id: idFrom(form, "taskId"), status: "active" }, data: { status: "archived", archivedAt: new Date() } });
@@ -58,6 +70,10 @@ export async function archiveTask(form: FormData) {
 }
 export async function restoreTask(form: FormData) {
   await prisma.task.update({ where: { id: idFrom(form, "taskId"), status: "archived" }, data: { status: "active", archivedAt: null } });
+  revalidatePath("/library");
+}
+export async function deleteTask(form: FormData) {
+  await prisma.task.delete({ where: { id: idFrom(form, "taskId") } });
   revalidatePath("/library");
 }
 export async function addWorkdayItem(form: FormData) {
@@ -70,6 +86,17 @@ export async function addWorkdayItem(form: FormData) {
     if (taskId) await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active" } });
     await tx.workdayItem.create({ data: { workdayId, taskId, title } });
   });
+  revalidatePath("/");
+}
+export async function removeWorkdayItem(form: FormData) {
+  const id = idFrom(form, "itemId");
+  await prisma.$transaction(async (tx) => {
+    const item = await tx.workdayItem.findUniqueOrThrow({ where: { id }, include: { workday: true, _count: { select: { focusSessions: true } } } });
+    if (item.workday.status === "completed") throw new Error("지난 작업일의 기록은 삭제할 수 없습니다.");
+    if (item._count.focusSessions) throw new Error("집중 기록이 있는 항목은 삭제할 수 없습니다. 완료 상태로 보존해 주세요.");
+    await tx.workdayItem.delete({ where: { id } });
+  });
+  revalidatePath("/library");
   revalidatePath("/");
 }
 export async function startWorkday(form: FormData) {
