@@ -5,13 +5,16 @@ const date = new Date("2099-12-30T00:00:00.000Z");
 const nextDate = new Date("2099-12-31T00:00:00.000Z");
 
 async function verify() {
-  const task = await prisma.task.create({ data: { title: "흐름 검증 작업" } });
+  const category = await prisma.taskCategory.create({ data: { title: `흐름 검증 ${Date.now()}` } });
+  const task = await prisma.task.create({ data: { categoryId: category.id, title: "흐름 검증 작업" } });
   const workday = await prisma.workday.create({ data: { workdayDate: date } });
   try {
+    let duplicateTaskBlocked = false;
+    try { await prisma.task.create({ data: { categoryId: category.id, title: "흐름 검증 작업" } }); }
+    catch { duplicateTaskBlocked = true; }
+    if (!duplicateTaskBlocked) throw new Error("같은 카테고리의 중복 작업 제약이 동작하지 않습니다.");
     const focusedItem = await prisma.workdayItem.create({ data: { workdayId: workday.id, taskId: task.id, title: "집중 세션 검증" } });
     const carrySource = await prisma.workdayItem.create({ data: { workdayId: workday.id, title: "이월 검증" } });
-    await prisma.workday.update({ where: { id: workday.id }, data: { status: "active", startedAt: new Date() } });
-
     const session = await prisma.focusSession.create({ data: { workdayItemId: focusedItem.id } });
     let duplicateBlocked = false;
     try { await prisma.focusSession.create({ data: { workdayItemId: carrySource.id } }); }
@@ -31,6 +34,7 @@ async function verify() {
   } finally {
     await prisma.workday.deleteMany({ where: { workdayDate: { in: [date, nextDate] } } });
     await prisma.task.delete({ where: { id: task.id } });
+    await prisma.taskCategory.delete({ where: { id: category.id } });
   }
 }
 

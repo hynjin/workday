@@ -12,17 +12,53 @@ const idSchema = z.string().min(1);
 const titleFrom = (form: FormData) => titleSchema.parse(form.get("title"));
 const idFrom = (form: FormData, key: string) => idSchema.parse(form.get(key));
 
+export async function createCategory(form: FormData) {
+  const title = titleFrom(form);
+  const existing = await prisma.taskCategory.findFirst({ where: { title: { equals: title, mode: "insensitive" } } });
+  if (existing) {
+    if (existing.status === "archived") await prisma.taskCategory.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } });
+  } else await prisma.taskCategory.create({ data: { title } });
+  revalidatePath("/library");
+}
+export async function updateCategory(form: FormData) {
+  const id = idFrom(form, "categoryId"), title = titleFrom(form);
+  const duplicate = await prisma.taskCategory.findFirst({ where: { title: { equals: title, mode: "insensitive" }, NOT: { id } } });
+  if (duplicate) throw new Error("같은 이름의 카테고리가 이미 있습니다.");
+  await prisma.taskCategory.update({ where: { id }, data: { title } });
+  revalidatePath("/library");
+}
+export async function archiveCategory(form: FormData) {
+  await prisma.taskCategory.update({ where: { id: idFrom(form, "categoryId") }, data: { status: "archived", archivedAt: new Date() } });
+  revalidatePath("/library");
+}
+export async function restoreCategory(form: FormData) {
+  await prisma.taskCategory.update({ where: { id: idFrom(form, "categoryId") }, data: { status: "active", archivedAt: null } });
+  revalidatePath("/library");
+}
 export async function createTask(form: FormData) {
-  await prisma.task.create({ data: { title: titleFrom(form) } });
-  revalidatePath("/");
+  const title = titleFrom(form), categoryId = idFrom(form, "categoryId");
+  const category = await prisma.taskCategory.findFirstOrThrow({ where: { id: categoryId, status: "active" } });
+  const existing = await prisma.task.findFirst({ where: { categoryId: category.id, title: { equals: title, mode: "insensitive" } } });
+  if (existing) {
+    if (existing.status === "archived") await prisma.task.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } });
+  } else await prisma.task.create({ data: { categoryId, title } });
+  revalidatePath("/library");
 }
 export async function updateTask(form: FormData) {
-  await prisma.task.update({ where: { id: idFrom(form, "taskId"), status: "active" }, data: { title: titleFrom(form) } });
-  revalidatePath("/");
+  const id = idFrom(form, "taskId"), title = titleFrom(form);
+  const task = await prisma.task.findUniqueOrThrow({ where: { id } });
+  const duplicate = await prisma.task.findFirst({ where: { categoryId: task.categoryId, title: { equals: title, mode: "insensitive" }, NOT: { id } } });
+  if (duplicate) throw new Error("이 카테고리에 같은 이름의 작업이 이미 있습니다.");
+  await prisma.task.update({ where: { id, status: "active" }, data: { title } });
+  revalidatePath("/library");
 }
 export async function archiveTask(form: FormData) {
   await prisma.task.update({ where: { id: idFrom(form, "taskId"), status: "active" }, data: { status: "archived", archivedAt: new Date() } });
-  revalidatePath("/");
+  revalidatePath("/library");
+}
+export async function restoreTask(form: FormData) {
+  await prisma.task.update({ where: { id: idFrom(form, "taskId"), status: "archived" }, data: { status: "active", archivedAt: null } });
+  revalidatePath("/library");
 }
 export async function addWorkdayItem(form: FormData) {
   const workdayId = idFrom(form, "workdayId");
@@ -103,15 +139,4 @@ async function carry(ids: string[]) {
       });
     }
   });
-}
-export async function endWorkday(form: FormData) {
-  const id = idFrom(form, "workdayId");
-  await prisma.$transaction(async (tx) => {
-    const workday = await tx.workday.findUniqueOrThrow({ where: { id } });
-    if (workday.status !== "active") throw new Error("진행 중인 작업일이 아닙니다.");
-    const active = await tx.focusSession.findFirst({ where: { endedAt: null, workdayItem: { workdayId: id } } });
-    if (active) throw new Error("집중 세션을 먼저 종료해 주세요.");
-    await tx.workday.update({ where: { id }, data: { status: "completed", endedAt: new Date() } });
-  });
-  redirect("/");
 }

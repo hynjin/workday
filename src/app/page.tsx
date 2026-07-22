@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { addWorkdayItem, archiveTask, createTask, startFocus, startWorkday, toggleItemComplete, updateTask } from "@/lib/actions";
+import { AppNav } from "@/components/app-nav";
+import { addWorkdayItem, startFocus, startWorkday, toggleItemComplete } from "@/lib/actions";
 import { getOrCreateCurrentWorkday, getWorkdayView } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { formatDuration, formatWorkdayDate } from "@/lib/workday-date";
@@ -18,20 +19,13 @@ export default async function Home() {
 }
 
 async function Planning({ workdayId }: { workdayId: string }) {
-  const [view, tasks] = await Promise.all([getWorkdayView(workdayId), prisma.task.findMany({ where: { status: "active" }, orderBy: { createdAt: "asc" } })]);
+  const view = await getWorkdayView(workdayId);
   const carried = view.items.filter((item) => item.carriedFromItemId);
   return <main className="shell">
+    <AppNav />
     <header className="pageHeader"><div><p className="eyebrow">{formatWorkdayDate(view.workdayDate)} 작업일</p><h1>이번 작업일 준비</h1><p className="lede">오늘 실제로 손댈 일만 골라 두세요. 순서는 정하지 않아도 됩니다.</p></div><span className="status">준비 중</span></header>
-    <div className="planningGrid">
-      <section className="panel"><div className="sectionTitle"><h2>전체 목록</h2><span>{tasks.length}</span></div>
-        <form action={createTask} className="rowForm"><label className="sr-only" htmlFor="new-task">전체 목록 제목</label><input id="new-task" name="title" placeholder="반복해서 꺼내 쓸 일" maxLength={120} required/><SubmitButton>추가</SubmitButton></form>
-        <div className="stack">{tasks.length ? tasks.map((task) => <article className="taskLibrary" key={task.id}>
-          <form action={updateTask} className="inlineEdit"><input type="hidden" name="taskId" value={task.id}/><label className="sr-only" htmlFor={`task-${task.id}`}>작업 제목 수정</label><input id={`task-${task.id}`} name="title" defaultValue={task.title} maxLength={120}/><button className="textButton">저장</button></form>
-          <form action={addWorkdayItem} className="specific"><input type="hidden" name="workdayId" value={view.id}/><input type="hidden" name="taskId" value={task.id}/><label className="sr-only" htmlFor={`goal-${task.id}`}>이번 작업일 목표</label><input id={`goal-${task.id}`} name="title" defaultValue={task.title} maxLength={120}/><button className="textButton accent">오늘에 추가</button></form>
-          <form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">보관</button></form>
-        </article>) : <p className="empty">전체 목록이 비어 있습니다.</p>}</div>
-      </section>
-      <section className="panel todayPanel"><div className="sectionTitle"><h2>이번 작업일 할 일</h2><span>{view.items.length}</span></div>
+    <div className="planningSolo">
+      <section className="panel todayPanel"><div className="sectionTitle"><h2>이번 작업일 할 일</h2><Link className="textButton accent" href="/library">전체 목록에서 고르기</Link></div>
         {carried.length > 0 && <div className="carryBox"><strong>이어서 할 일</strong>{carried.map((item) => <span key={item.id}>{item.title}</span>)}</div>}
         <form action={addWorkdayItem} className="rowForm"><input type="hidden" name="workdayId" value={view.id}/><label className="sr-only" htmlFor="quick-title">즉흥 작업 제목</label><input id="quick-title" name="title" placeholder="직접 추가할 일" maxLength={120} required/><SubmitButton>추가</SubmitButton></form>
         <div className="todayList">{view.items.map((item) => <div className="todayItem" key={item.id}><span>{item.title}</span>{item.taskId ? <small>전체 목록에서 추가</small> : <small>직접 추가</small>}</div>)}{!view.items.length && <p className="empty">오늘 할 일을 추가하면 여기에 표시됩니다.</p>}</div>
@@ -44,6 +38,7 @@ async function Planning({ workdayId }: { workdayId: string }) {
 async function Active({ workdayId }: { workdayId: string }) {
   const view = await getWorkdayView(workdayId);
   return <main className="shell">
+    <AppNav />
     <header className="pageHeader"><div><p className="eyebrow">{formatWorkdayDate(view.workdayDate)} 작업일</p><h1>이번 작업일</h1></div><div className="total"><span>총 집중</span><strong>{formatDuration(view.totalSeconds)}</strong></div></header>
     <section className="panel"><div className="sectionTitle"><h2>오늘 할 일</h2><span>{view.items.filter(i => i.status === "completed").length}/{view.items.length} 완료</span></div>
       <div className="workList">{view.items.map((item) => <article className={`workItem ${item.status === "completed" ? "done" : ""}`} key={item.id}>
@@ -52,6 +47,6 @@ async function Active({ workdayId }: { workdayId: string }) {
       </article>)}</div>
       <details className="addDuring"><summary>+ 할 일 추가</summary><form action={addWorkdayItem} className="rowForm"><input type="hidden" name="workdayId" value={view.id}/><label className="sr-only" htmlFor="during-title">새 작업 제목</label><input id="during-title" name="title" placeholder="지금 추가할 일" maxLength={120} required/><SubmitButton>추가</SubmitButton></form></details>
     </section>
-    <div className="footerAction"><Link className="button secondary" href="/summary">작업일 요약</Link></div>
+    <div className="footerAction"><Link className="button secondary" href="/library">전체 목록 · 작업 준비</Link><Link className="button secondary" href="/summary">작업일 요약</Link></div>
   </main>;
 }

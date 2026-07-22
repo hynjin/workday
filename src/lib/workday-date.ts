@@ -12,6 +12,20 @@ export function getWorkdayDate(now = new Date()): string {
 
 export function dateKeyToDate(key: string) { return new Date(`${key}T00:00:00.000Z`); }
 export function nextDate(date: Date) { const d = new Date(date); d.setUTCDate(d.getUTCDate() + 1); return d; }
+export function getBoundaryInstant(dateKey: string) {
+  const [year, month, day] = dateKey.split("-").map(Number);
+  let guess = Date.UTC(year, month - 1, day, WORKDAY_BOUNDARY_HOUR);
+  for (let i = 0; i < 2; i++) {
+    const parts = new Intl.DateTimeFormat("en-CA", {
+      timeZone: WORKDAY_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+    }).formatToParts(new Date(guess));
+    const value = (type: Intl.DateTimeFormatPartTypes) => Number(parts.find((p) => p.type === type)?.value);
+    const represented = Date.UTC(value("year"), value("month") - 1, value("day"), value("hour"), value("minute"), value("second"));
+    guess += Date.UTC(year, month - 1, day, WORKDAY_BOUNDARY_HOUR) - represented;
+  }
+  return new Date(guess);
+}
 export function formatWorkdayDate(date: Date) {
   return new Intl.DateTimeFormat("ko-KR", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" }).format(date);
 }
