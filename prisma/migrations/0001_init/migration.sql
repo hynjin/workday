@@ -1,0 +1,17 @@
+CREATE TYPE "TaskStatus" AS ENUM ('active', 'archived');
+CREATE TYPE "WorkdayStatus" AS ENUM ('planning', 'active', 'completed');
+CREATE TYPE "WorkdayItemStatus" AS ENUM ('planned', 'completed');
+CREATE TABLE "Task" ("id" TEXT PRIMARY KEY, "title" TEXT NOT NULL, "status" "TaskStatus" NOT NULL DEFAULT 'active', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL, "archivedAt" TIMESTAMP(3));
+CREATE TABLE "Workday" ("id" TEXT PRIMARY KEY, "workdayDate" DATE NOT NULL, "status" "WorkdayStatus" NOT NULL DEFAULT 'planning', "startedAt" TIMESTAMP(3), "endedAt" TIMESTAMP(3), "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "updatedAt" TIMESTAMP(3) NOT NULL);
+CREATE TABLE "WorkdayItem" ("id" TEXT PRIMARY KEY, "workdayId" TEXT NOT NULL, "taskId" TEXT, "title" TEXT NOT NULL, "status" "WorkdayItemStatus" NOT NULL DEFAULT 'planned', "carriedFromItemId" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "completedAt" TIMESTAMP(3));
+CREATE TABLE "FocusSession" ("id" TEXT PRIMARY KEY, "workdayItemId" TEXT NOT NULL, "startedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP, "endedAt" TIMESTAMP(3), "durationSeconds" INTEGER, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP);
+CREATE UNIQUE INDEX "Workday_workdayDate_key" ON "Workday"("workdayDate");
+CREATE UNIQUE INDEX "WorkdayItem_workdayId_carriedFromItemId_key" ON "WorkdayItem"("workdayId", "carriedFromItemId");
+CREATE INDEX "WorkdayItem_workdayId_status_idx" ON "WorkdayItem"("workdayId", "status");
+CREATE INDEX "FocusSession_workdayItemId_idx" ON "FocusSession"("workdayItemId");
+CREATE UNIQUE INDEX "one_active_workday" ON "Workday" ((1)) WHERE "status" = 'active';
+CREATE UNIQUE INDEX "one_active_focus_session" ON "FocusSession" ((1)) WHERE "endedAt" IS NULL;
+ALTER TABLE "WorkdayItem" ADD CONSTRAINT "WorkdayItem_workdayId_fkey" FOREIGN KEY ("workdayId") REFERENCES "Workday"("id") ON DELETE CASCADE;
+ALTER TABLE "WorkdayItem" ADD CONSTRAINT "WorkdayItem_taskId_fkey" FOREIGN KEY ("taskId") REFERENCES "Task"("id") ON DELETE SET NULL;
+ALTER TABLE "WorkdayItem" ADD CONSTRAINT "WorkdayItem_carriedFromItemId_fkey" FOREIGN KEY ("carriedFromItemId") REFERENCES "WorkdayItem"("id") ON DELETE SET NULL;
+ALTER TABLE "FocusSession" ADD CONSTRAINT "FocusSession_workdayItemId_fkey" FOREIGN KEY ("workdayItemId") REFERENCES "WorkdayItem"("id") ON DELETE CASCADE;

@@ -1,0 +1,19 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: workday
+      POSTGRES_USER: workday
+      POSTGRES_PASSWORD: workday_local
+    ports:
+      - "127.0.0.1:54329:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U workday -d workday"]
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    volumes:
+      - workday_postgres:/var/lib/postgresql/data
+
+volumes:
+  workday_postgres:

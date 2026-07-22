@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum TaskStatus {
+  active
+  archived
+}
+
+enum WorkdayStatus {
+  planning
+  active
+  completed
+}
+
+enum WorkdayItemStatus {
+  planned
+  completed
+}
+
+model Task {
+  id         String        @id @default(cuid())
+  title      String
+  status     TaskStatus    @default(active)
+  createdAt  DateTime      @default(now())
+  updatedAt  DateTime      @updatedAt
+  archivedAt DateTime?
+  items      WorkdayItem[]
+}
+
+model Workday {
+  id          String         @id @default(cuid())
+  workdayDate DateTime       @unique @db.Date
+  status      WorkdayStatus  @default(planning)
+  startedAt   DateTime?
+  endedAt     DateTime?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  items       WorkdayItem[]
+}
+
+model WorkdayItem {
+  id                String            @id @default(cuid())
+  workdayId         String
+  taskId            String?
+  title             String
+  status            WorkdayItemStatus @default(planned)
+  carriedFromItemId String?
+  createdAt         DateTime          @default(now())
+  completedAt       DateTime?
+  workday           Workday           @relation(fields: [workdayId], references: [id], onDelete: Cascade)
+  task              Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  carriedFrom       WorkdayItem?       @relation("CarryChain", fields: [carriedFromItemId], references: [id], onDelete: SetNull)
+  carriedTo         WorkdayItem[]      @relation("CarryChain")
+  focusSessions     FocusSession[]
+
+  @@unique([workdayId, carriedFromItemId])
+  @@index([workdayId, status])
+}
+
+model FocusSession {
+  id              String      @id @default(cuid())
+  workdayItemId   String
+  startedAt       DateTime    @default(now())
+  endedAt         DateTime?
+  durationSeconds Int?
+  createdAt       DateTime    @default(now())
+  workdayItem     WorkdayItem @relation(fields: [workdayItemId], references: [id], onDelete: Cascade)
+
+  @@index([workdayItemId])
+}
