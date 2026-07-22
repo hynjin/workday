@@ -26,14 +26,22 @@ export async function getOrCreateCurrentWorkday() {
   return existing ?? prisma.workday.create({ data: { workdayDate: date } });
 }
 
+export async function getOrCreateWorkdayForDate(key: string) {
+  const currentKey = getWorkdayDate();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || key < currentKey) throw new Error("오늘 이후의 날짜만 계획할 수 있습니다.");
+  if (key === currentKey) return getOrCreateCurrentWorkday();
+  const workdayDate = dateKeyToDate(key);
+  return prisma.workday.upsert({ where: { workdayDate }, create: { workdayDate }, update: {} });
+}
+
 export async function getWorkdayView(id: string) {
   const workday = await prisma.workday.findUniqueOrThrow({
-    where: { id }, include: { items: { orderBy: { createdAt: "asc" }, include: { focusSessions: true } } },
+    where: { id }, include: { items: { orderBy: { createdAt: "asc" }, include: { focusSessions: true, task: { include: { category: true } } } } },
   });
   const now = Date.now();
   const items = workday.items.map((item) => {
     const seconds = item.focusSessions.reduce((sum, session) => sum + (session.durationSeconds ?? (session.endedAt ? 0 : Math.max(0, Math.floor((now - session.startedAt.getTime()) / 1000)))), 0);
-    return { ...item, seconds, sessionCount: item.focusSessions.length, focusSessions: undefined };
+    return { ...item, seconds, sessionCount: item.focusSessions.length, categoryTitle: item.task?.category.title ?? null, focusSessions: undefined, task: undefined };
   });
   return { ...workday, items, totalSeconds: items.reduce((sum, item) => sum + item.seconds, 0), totalSessions: items.reduce((sum, item) => sum + item.sessionCount, 0) };
 }

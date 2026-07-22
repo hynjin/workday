@@ -75,6 +75,7 @@ model WorkdayItem {
   focusSessions     FocusSession[]
 
   @@unique([workdayId, carriedFromItemId])
+  @@unique([workdayId, taskId])
   @@index([workdayId, status])
 }
 

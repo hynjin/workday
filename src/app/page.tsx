@@ -27,7 +27,7 @@ async function Planning({ workdayId }: { workdayId: string }) {
     <div className="planningSolo">
       <section className="panel todayPanel"><div className="sectionTitle"><h2>이번 작업일 할 일</h2><Link className="textButton accent" href="/library">전체 목록에서 고르기</Link></div>
         {carried.length > 0 && <div className="carryBox"><strong>이어서 할 일</strong>{carried.map((item) => <span key={item.id}>{item.title}</span>)}</div>}
-        <div className="todayList">{view.items.map((item) => <div className="todayItem" key={item.id}><span>{item.title}</span>{item.taskId ? <small>전체 목록에서 추가</small> : <small>직접 추가</small>}</div>)}{!view.items.length && <p className="empty">오늘 할 일을 추가하면 여기에 표시됩니다.</p>}</div>
+        <div className="todayList">{view.items.map((item) => <div className="todayItem" key={item.id}><span>{item.title}</span><small>{item.categoryTitle ?? "직접 추가"}</small></div>)}{!view.items.length && <p className="empty">오늘 할 일을 추가하면 여기에 표시됩니다.</p>}</div>
         <form action={startWorkday}><input type="hidden" name="workdayId" value={view.id}/><button className="button full" disabled={!view.items.length}>작업일 시작</button></form>
       </section>
     </div>
@@ -41,11 +41,11 @@ async function Active({ workdayId }: { workdayId: string }) {
     <header className="pageHeader"><div><p className="eyebrow">{formatWorkdayDate(view.workdayDate)} 작업일</p><h1>이번 작업일</h1></div><div className="total"><span>총 집중</span><strong>{formatDuration(view.totalSeconds)}</strong></div></header>
     <section className="panel"><div className="sectionTitle"><h2>오늘 할 일</h2><span>{view.items.filter(i => i.status === "completed").length}/{view.items.length} 완료</span></div>
       <div className="workList">{view.items.map((item) => <article className={`workItem ${item.status === "completed" ? "done" : ""}`} key={item.id}>
-        <div><h3>{item.title}</h3><p>오늘 누적 <strong>{formatDuration(item.seconds)}</strong></p></div>
-        <div className="actions"><form action={startFocus}><input type="hidden" name="itemId" value={item.id}/><SubmitButton secondary>집중 시작</SubmitButton></form><form action={toggleItemComplete}><input type="hidden" name="itemId" value={item.id}/><SubmitButton>{item.status === "completed" ? "완료 취소" : "완료"}</SubmitButton></form></div>
+        <div><h3>{item.title}</h3><p>{item.categoryTitle && <><span className="itemCategory">{item.categoryTitle}</span> · </>}오늘 누적 <strong>{formatDuration(item.seconds)}</strong></p></div>
+        <div className="actions">{item.status !== "completed" && <form action={startFocus}><input type="hidden" name="itemId" value={item.id}/><SubmitButton secondary>집중 시작</SubmitButton></form>}<form action={toggleItemComplete}><input type="hidden" name="itemId" value={item.id}/><SubmitButton>{item.status === "completed" ? "완료 취소" : "완료"}</SubmitButton></form></div>
       </article>)}</div>
       <Link className="addTaskLink" href="/library">+ 할 일 추가 · 전체 목록에서 관리</Link>
     </section>
-    <div className="footerAction"><Link className="button secondary" href="/library">전체 목록 · 작업 준비</Link><Link className="button secondary" href="/summary">작업일 요약</Link></div>
+    <div className="footerAction"><Link className="button secondary" href="/summary">작업일 요약</Link></div>
   </main>;
 }

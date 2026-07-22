@@ -14,6 +14,10 @@ async function verify() {
     catch { duplicateTaskBlocked = true; }
     if (!duplicateTaskBlocked) throw new Error("같은 카테고리의 중복 작업 제약이 동작하지 않습니다.");
     const focusedItem = await prisma.workdayItem.create({ data: { workdayId: workday.id, taskId: task.id, title: "집중 세션 검증" } });
+    let duplicateWorkdayTaskBlocked = false;
+    try { await prisma.workdayItem.create({ data: { workdayId: workday.id, taskId: task.id, title: "중복 작업" } }); }
+    catch { duplicateWorkdayTaskBlocked = true; }
+    if (!duplicateWorkdayTaskBlocked) throw new Error("같은 작업일의 중복 작업 제약이 동작하지 않습니다.");
     const carrySource = await prisma.workdayItem.create({ data: { workdayId: workday.id, title: "이월 검증" } });
     const session = await prisma.focusSession.create({ data: { workdayItemId: focusedItem.id } });
     let duplicateBlocked = false;

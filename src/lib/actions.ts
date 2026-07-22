@@ -84,9 +84,14 @@ export async function addWorkdayItem(form: FormData) {
     const workday = await tx.workday.findUniqueOrThrow({ where: { id: workdayId } });
     if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
     if (taskId) await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active" } });
+    const existing = taskId
+      ? await tx.workdayItem.findFirst({ where: { workdayId, taskId } })
+      : await tx.workdayItem.findFirst({ where: { workdayId, taskId: null, title: { equals: title, mode: "insensitive" } } });
+    if (existing) return;
     await tx.workdayItem.create({ data: { workdayId, taskId, title } });
   });
   revalidatePath("/");
+  revalidatePath("/library");
 }
 export async function removeWorkdayItem(form: FormData) {
   const id = idFrom(form, "itemId");
@@ -125,6 +130,7 @@ export async function startFocus(form: FormData) {
   const session = await prisma.$transaction(async (tx) => {
     const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
     if (item.workday.status !== "active") throw new Error("진행 중인 작업일이 아닙니다.");
+    if (item.status === "completed") throw new Error("완료한 작업은 완료 취소 후 집중을 시작해 주세요.");
     const active = await tx.focusSession.findFirst({ where: { endedAt: null } });
     if (active) return active;
     return tx.focusSession.create({ data: { workdayItemId: itemId } });
@@ -160,6 +166,10 @@ async function carry(ids: string[]) {
       const targetDate = nextDate(source.workday.workdayDate);
       const target = await tx.workday.upsert({ where: { workdayDate: targetDate }, create: { workdayDate: targetDate }, update: {} });
       if (target.status === "completed") throw new Error("다음 작업일이 이미 종료되었습니다.");
+      const existing = source.taskId
+        ? await tx.workdayItem.findFirst({ where: { workdayId: target.id, taskId: source.taskId } })
+        : await tx.workdayItem.findFirst({ where: { workdayId: target.id, taskId: null, title: { equals: source.title, mode: "insensitive" } } });
+      if (existing) continue;
       await tx.workdayItem.upsert({
         where: { workdayId_carriedFromItemId: { workdayId: target.id, carriedFromItemId: source.id } },
         create: { workdayId: target.id, taskId: source.taskId, title: source.title, carriedFromItemId: source.id }, update: {},
