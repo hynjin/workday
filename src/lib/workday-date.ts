@@ -26,13 +26,13 @@ export function getBoundaryInstant(dateKey: string) {
   }
   return new Date(guess);
 }
-export function formatWorkdayDate(date: Date) {
-  return new Intl.DateTimeFormat("ko-KR", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" }).format(date);
+export function formatWorkdayDate(date: Date, locale: "ko" | "en" = "ko") {
+  return new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-CA", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" }).format(date);
 }
-export function formatDuration(seconds: number, clock = false) {
+export function formatDuration(seconds: number, clock = false, locale: "ko" | "en" = "ko") {
   const safe = Math.max(0, Math.floor(seconds));
   const h = Math.floor(safe / 3600), m = Math.floor((safe % 3600) / 60), s = safe % 60;
   if (clock) return [h, m, s].map((v) => String(v).padStart(2, "0")).join(":");
-  if (h) return `${h}시간${m ? ` ${m}분` : ""}`;
-  return `${m}분`;
+  if (h) return locale === "ko" ? `${h}시간${m ? ` ${m}분` : ""}` : `${h}h${m ? ` ${m}m` : ""}`;
+  return locale === "ko" ? `${m}분` : `${m}m`;
 }

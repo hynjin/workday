@@ -17,7 +17,7 @@ export function EditableText({ action, idName, id, value, label, className = "" 
   const save = () => { formRef.current?.requestSubmit(); setEditing(false); };
   return <form ref={formRef} action={action} className={`editableText ${className}`}>
     <input type="hidden" name={idName} value={id}/>
-    {editing ? <input ref={inputRef} name="title" defaultValue={value} aria-label={label} maxLength={120} onBlur={save} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } if (event.key === "Escape") setEditing(false); }}/> : <><span>{value}</span><button type="button" className="iconButton" onClick={begin} aria-label={`${label} 수정`} title="수정">✎</button></>}
+    {editing ? <input ref={inputRef} name="title" defaultValue={value} aria-label={label} maxLength={120} onBlur={save} onKeyDown={(event) => { if (event.key === "Enter") { event.preventDefault(); event.currentTarget.blur(); } if (event.key === "Escape") setEditing(false); }}/> : <><span>{value}</span><button type="button" className="iconButton" onClick={begin} aria-label={label} title={label}>✎</button></>}
   </form>;
 }
 

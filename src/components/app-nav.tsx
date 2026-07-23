@@ -1,9 +1,10 @@
 import Link from "next/link";
+import { getLocale, copy } from "@/lib/i18n";
+import { LanguageToggle } from "@/components/language-toggle";
 
-export function AppNav() {
-  return <nav className="appNav" aria-label="주요 메뉴">
-    <Link href="/">이번 작업일</Link>
-    <Link href="/library">전체 목록 · 준비</Link>
-    <Link href="/summary">작업일 요약</Link>
-  </nav>;
+export async function AppNav() {
+  const locale = await getLocale(), labels = copy[locale].nav;
+  return <div className="navRow"><nav className="appNav" aria-label={locale === "ko" ? "주요 메뉴" : "Main navigation"}>
+    <Link href="/">{labels[0]}</Link><Link href="/library">{labels[1]}</Link><Link href="/summary">{labels[2]}</Link>
+  </nav><LanguageToggle locale={locale}/></div>;
 }
