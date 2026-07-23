@@ -115,6 +115,30 @@ export async function removeWorkdayItem(form: FormData) {
   revalidatePath("/library");
   revalidatePath("/");
 }
+export async function saveWorkdayItemToLibrary(form: FormData) {
+  const itemId = idFrom(form, "itemId");
+  await prisma.$transaction(async (tx) => {
+    const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId } });
+    if (item.taskId) return;
+    const inbox = await tx.taskCategory.upsert({
+      where: { id: "legacy-uncategorized" },
+      create: { id: "legacy-uncategorized", title: "미분류" },
+      update: { status: "active", archivedAt: null },
+    });
+    const existing = await tx.task.findFirst({
+      where: { categoryId: inbox.id, title: { equals: item.title, mode: "insensitive" } },
+    });
+    const task = existing
+      ? await tx.task.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } })
+      : await tx.task.create({ data: { categoryId: inbox.id, title: item.title } });
+    const duplicate = await tx.workdayItem.findFirst({
+      where: { workdayId: item.workdayId, taskId: task.id, NOT: { id: item.id } },
+    });
+    if (!duplicate) await tx.workdayItem.update({ where: { id: item.id }, data: { taskId: task.id } });
+  });
+  revalidatePath("/");
+  revalidatePath("/library");
+}
 export async function startWorkday(form: FormData) {
   const id = idFrom(form, "workdayId");
   await prisma.$transaction(async (tx) => {
@@ -135,6 +159,7 @@ export async function toggleItemComplete(form: FormData) {
     await tx.workdayItem.update({ where: { id: itemId }, data: { status: completed ? "planned" : "completed", completedAt: completed ? null : new Date() } });
   });
   revalidatePath("/");
+  revalidatePath("/summary");
 }
 export async function startFocus(form: FormData) {
   const itemId = idFrom(form, "itemId");
