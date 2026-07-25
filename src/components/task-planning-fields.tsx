@@ -7,9 +7,13 @@ type Rule = {
   interval: number;
   weekdays: number[];
   monthDay: number | null;
-  startsOn: Date;
-  endsOn: Date | null;
+  startsOn: Date | string;
+  endsOn: Date | string | null;
 };
+
+function dateValue(value: Date | string) {
+  return typeof value === "string" ? value.slice(0, 10) : value.toISOString().slice(0, 10);
+}
 
 export function TaskPlanningFields({ taskId, estimatedMinutes, rule, locale }: {
   taskId: string;
@@ -32,8 +36,8 @@ export function TaskPlanningFields({ taskId, estimatedMinutes, rule, locale }: {
         <div className="recurrenceGrid">
           <label><span>{locale === "ko" ? "반복" : "Repeat"}</span><select name="frequency" defaultValue={rule?.frequency ?? "weekly"}><option value="daily">{locale === "ko" ? "매일" : "Daily"}</option><option value="weekly">{locale === "ko" ? "매주" : "Weekly"}</option><option value="monthly">{locale === "ko" ? "매월" : "Monthly"}</option></select></label>
           <label><span>{locale === "ko" ? "간격" : "Interval"}</span><input type="number" name="interval" min="1" max="365" defaultValue={rule?.interval ?? 1}/></label>
-          <label><span>{locale === "ko" ? "시작" : "Starts"}</span><input type="date" name="startsOn" defaultValue={rule?.startsOn.toISOString().slice(0, 10) ?? today} required/></label>
-          <label><span>{locale === "ko" ? "종료(선택)" : "Ends (optional)"}</span><input type="date" name="endsOn" defaultValue={rule?.endsOn?.toISOString().slice(0, 10) ?? ""}/></label>
+          <label><span>{locale === "ko" ? "시작" : "Starts"}</span><input type="date" name="startsOn" defaultValue={rule ? dateValue(rule.startsOn) : today} required/></label>
+          <label><span>{locale === "ko" ? "종료(선택)" : "Ends (optional)"}</span><input type="date" name="endsOn" defaultValue={rule?.endsOn ? dateValue(rule.endsOn) : ""}/></label>
           <label><span>{locale === "ko" ? "매월 날짜" : "Day of month"}</span><input type="number" name="monthDay" min="1" max="31" defaultValue={rule?.monthDay ?? new Date(`${today}T00:00:00Z`).getUTCDate()}/></label>
         </div>
         <fieldset className="weekdayPicker"><legend>{locale === "ko" ? "매주 반복 요일" : "Weekly days"}</legend>{weekdayLabels.map((label, day) => <label key={day}><input type="checkbox" name="weekdays" value={day} defaultChecked={rule?.weekdays.includes(day) ?? day === new Date(`${today}T00:00:00Z`).getUTCDay()}/><span>{label}</span></label>)}</fieldset>
@@ -43,4 +47,3 @@ export function TaskPlanningFields({ taskId, estimatedMinutes, rule, locale }: {
     </div>
   </details>;
 }
-

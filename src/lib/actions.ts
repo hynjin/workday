@@ -65,6 +65,89 @@ export async function deleteProject(form: FormData) {
   redirect("/projects");
 }
 
+export async function setProjectViewMode(form: FormData) {
+  const projectId = idFrom(form, "projectId");
+  const viewMode = z.enum(["list", "board"]).parse(form.get("viewMode"));
+  await prisma.project.update({ where: { id: projectId, status: "active" }, data: { viewMode } });
+  refreshWorkspace();
+}
+
+export async function createSection(form: FormData) {
+  const projectId = idFrom(form, "projectId");
+  const title = titleFrom(form);
+  await prisma.$transaction(async (tx) => {
+    await tx.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
+    const duplicate = await tx.section.findFirst({ where: { projectId, title: { equals: title, mode: "insensitive" } } });
+    if (duplicate) throw new Error("같은 프로젝트에 같은 이름의 섹션이 이미 있습니다.");
+    const last = await tx.section.aggregate({ where: { projectId }, _max: { sortOrder: true } });
+    await tx.section.create({ data: { projectId, title, sortOrder: (last._max.sortOrder ?? -1) + 1 } });
+  });
+  refreshWorkspace();
+}
+
+export async function updateSection(form: FormData) {
+  const sectionId = idFrom(form, "sectionId");
+  const title = titleFrom(form);
+  const section = await prisma.section.findUniqueOrThrow({ where: { id: sectionId } });
+  const duplicate = await prisma.section.findFirst({
+    where: { projectId: section.projectId, title: { equals: title, mode: "insensitive" }, NOT: { id: sectionId } },
+  });
+  if (duplicate) throw new Error("같은 프로젝트에 같은 이름의 섹션이 이미 있습니다.");
+  await prisma.section.update({ where: { id: sectionId }, data: { title } });
+  refreshWorkspace();
+}
+
+export async function deleteSection(form: FormData) {
+  await prisma.section.delete({ where: { id: idFrom(form, "sectionId") } });
+  refreshWorkspace();
+}
+
+export async function moveProjectTask(taskIdInput: string, sectionIdInput: string | null, targetIndexInput: number) {
+  const taskId = idSchema.parse(taskIdInput);
+  const sectionId = z.string().min(1).nullable().parse(sectionIdInput);
+  const targetIndex = z.number().int().min(0).parse(targetIndexInput);
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active" } });
+    if (!task.projectId) throw new Error("프로젝트 작업만 정렬할 수 있습니다.");
+    if (sectionId) await tx.section.findFirstOrThrow({ where: { id: sectionId, projectId: task.projectId } });
+
+    const projectTasks = await tx.task.findMany({
+      where: { projectId: task.projectId, status: "active" },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, sectionId: true },
+    });
+    const sourceIds = projectTasks.filter(item => item.sectionId === task.sectionId && item.id !== taskId).map(item => item.id);
+    const targetIds = projectTasks.filter(item => item.sectionId === sectionId && item.id !== taskId).map(item => item.id);
+    targetIds.splice(Math.min(targetIndex, targetIds.length), 0, taskId);
+
+    if (task.sectionId !== sectionId) {
+      await Promise.all(sourceIds.map((id, sortOrder) => tx.task.update({ where: { id }, data: { sortOrder } })));
+    }
+    await Promise.all(targetIds.map((id, sortOrder) => tx.task.update({
+      where: { id },
+      data: id === taskId ? { sectionId, sortOrder } : { sortOrder },
+    })));
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  refreshWorkspace();
+}
+
+export async function moveProjectSection(projectIdInput: string, sectionIdInput: string, targetIndexInput: number) {
+  const projectId = idSchema.parse(projectIdInput);
+  const sectionId = idSchema.parse(sectionIdInput);
+  const targetIndex = z.number().int().min(0).parse(targetIndexInput);
+  await prisma.$transaction(async (tx) => {
+    await tx.section.findFirstOrThrow({ where: { id: sectionId, projectId } });
+    const ids = (await tx.section.findMany({
+      where: { projectId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    })).map(section => section.id).filter(id => id !== sectionId);
+    ids.splice(Math.min(targetIndex, ids.length), 0, sectionId);
+    await Promise.all(ids.map((id, sortOrder) => tx.section.update({ where: { id }, data: { sortOrder } })));
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  refreshWorkspace();
+}
+
 export async function createTask(form: FormData) {
   const title = titleFrom(form), projectId = optionalIdFrom(form, "projectId");
   const estimatedMinutes = estimatedMinutesFrom(form);
