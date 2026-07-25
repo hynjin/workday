@@ -80,7 +80,7 @@ kbd { display:inline-grid; min-width:24px; min-height:22px; place-items:center; 
 /* Unified planning, drag and modal controls */
 .summaryStats.three { grid-template-columns:repeat(3,1fr); }
 .quickAddBackdrop { position:fixed; inset:0; z-index:0; border:0; background:rgba(25,32,26,.18); cursor:default; }
-.quickAddForm { position:relative; z-index:1; }
+.quickAddForm { position:fixed; right:24px; bottom:24px; z-index:1; }
 .quickAddHeader { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
 .iconButton { display:grid; width:32px; height:32px; flex:0 0 auto; place-items:center; border:0; border-radius:9px; background:#f1f2ed; color:var(--ink); font-size:1.25rem; cursor:pointer; }
 .recurrenceGrid label,.taskPlanningBody,.recurrenceForm { min-width:0; }
@@ -109,6 +109,7 @@ kbd { display:inline-grid; min-width:24px; min-height:22px; place-items:center; 
   .taskSchedulePicker { width:100%; }
   .taskSchedulePicker input { min-width:0; max-width:none; flex:1; }
   .moreMenu>div { position:fixed; right:16px; left:16px; bottom:76px; top:auto; }
+  .quickAddForm { right:16px; bottom:16px; }
 }
 
 @media (max-width:480px) {
