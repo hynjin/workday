@@ -1,4 +1,5 @@
-import type { Prisma, RecurrenceFrequency } from "@prisma/client";
+import { randomUUID } from "node:crypto";
+import { Prisma, type RecurrenceFrequency } from "@prisma/client";
 import { prisma } from "./prisma";
 import { dateKeyToDate } from "./workday-date";
 
@@ -59,17 +60,17 @@ async function generateRuleOccurrences(client: RecurrenceClient, rule: RuleWithT
       update: {},
     });
     if (workday.status === "completed") continue;
-    await client.workdayItem.upsert({
-      where: { workdayId_taskId: { workdayId: workday.id, taskId: rule.taskId } },
-      create: {
-        workdayId: workday.id,
-        taskId: rule.taskId,
-        titleSnapshot: rule.task.title,
-        legacyTitle: rule.task.title,
-        recurrenceRuleId: rule.id,
-      },
-      update: {},
-    });
+    await client.$executeRaw(Prisma.sql`
+      INSERT INTO "WorkdayItem" (
+        "id", "workdayId", "taskId", "titleSnapshot", "title",
+        "recurrenceRuleId", "status", "isKeyTask", "sortOrder", "createdAt"
+      )
+      VALUES (
+        ${randomUUID()}, ${workday.id}, ${rule.taskId}, ${rule.task.title}, ${rule.task.title},
+        ${rule.id}, 'planned'::"WorkdayItemStatus", false, 0, CURRENT_TIMESTAMP
+      )
+      ON CONFLICT ("workdayId", "taskId") DO NOTHING
+    `);
   }
 }
 
