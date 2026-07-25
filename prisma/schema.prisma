@@ -35,6 +35,14 @@ enum RecurrenceFrequency {
   monthly
 }
 
+enum ProductivityEventType {
+  focus_completed
+  task_completed
+  key_task_completed
+  workday_active
+  weekly_goal_reached
+}
+
 model Task {
   id               String        @id @default(cuid())
   projectId        String?
@@ -109,6 +117,7 @@ model Workday {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   items       WorkdayItem[]
+  productivityEvents ProductivityEvent[]
 }
 
 model WorkdayItem {
@@ -130,6 +139,7 @@ model WorkdayItem {
   carriedTo         WorkdayItem[]      @relation("CarryChain")
   recurrenceRule    RecurrenceRule?    @relation(fields: [recurrenceRuleId], references: [id], onDelete: SetNull)
   focusSessions     FocusSession[]
+  productivityEvents ProductivityEvent[]
 
   @@unique([workdayId, carriedFromItemId])
   @@unique([workdayId, taskId])
@@ -150,4 +160,29 @@ model FocusSession {
   workdayItem     WorkdayItem @relation(fields: [workdayItemId], references: [id], onDelete: Cascade)
 
   @@index([workdayItemId])
+}
+
+model ProductivityEvent {
+  id            String                @id @default(cuid())
+  type          ProductivityEventType
+  points        Int
+  ruleVersion   Int                   @default(1)
+  dedupeKey     String                @unique
+  workdayId     String?
+  workdayItemId String?
+  occurredAt    DateTime              @default(now())
+  workday       Workday?              @relation(fields: [workdayId], references: [id], onDelete: SetNull)
+  workdayItem   WorkdayItem?          @relation(fields: [workdayItemId], references: [id], onDelete: SetNull)
+
+  @@index([occurredAt])
+  @@index([type, occurredAt])
+  @@index([workdayId])
+  @@index([workdayItemId])
+}
+
+model ProductivityGoal {
+  id                 String   @id @default("default")
+  weeklyFocusMinutes Int      @default(300)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }

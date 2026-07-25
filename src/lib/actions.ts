@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "./prisma";
+import { recordFocusCompletion, recordKeyTaskCompletion, recordTaskCompletion, recordWorkdayActive } from "./productivity";
 import { generateOccurrences } from "./recurrence";
 import { dateKeyToDate, getWorkdayDate, nextDate } from "./workday-date";
 
@@ -415,7 +416,9 @@ export async function startWorkday(form: FormData) {
     const workday = await tx.workday.findUniqueOrThrow({ where: { id }, include: { _count: { select: { items: true } } } });
     if (workday.status !== "planning" || !workday._count.items) throw new Error("할 일을 하나 이상 추가해 주세요.");
     if (await tx.workday.findFirst({ where: { status: "active", NOT: { id } } })) throw new Error("이미 진행 중인 작업일이 있습니다.");
-    await tx.workday.update({ where: { id }, data: { status: "active", startedAt: new Date() } });
+    const startedAt = new Date();
+    await tx.workday.update({ where: { id }, data: { status: "active", startedAt } });
+    await recordWorkdayActive(tx, id, startedAt);
   });
   redirect("/");
 }
@@ -426,7 +429,9 @@ export async function toggleItemComplete(form: FormData) {
     const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
     if (item.workday.status !== "active") throw new Error("진행 중인 작업일만 변경할 수 있습니다.");
     const completed = item.status === "completed";
-    await tx.workdayItem.update({ where: { id: itemId }, data: { status: completed ? "planned" : "completed", completedAt: completed ? null : new Date() } });
+    const completedAt = completed ? null : new Date();
+    await tx.workdayItem.update({ where: { id: itemId }, data: { status: completed ? "planned" : "completed", completedAt } });
+    if (completedAt) await recordTaskCompletion(tx, itemId, completedAt);
   });
   refreshWorkspace();
 }
@@ -442,7 +447,9 @@ export async function toggleKeyTask(form: FormData) {
       const count = await tx.workdayItem.count({ where: { workdayId: item.workdayId, isKeyTask: true } });
       if (count >= 3) throw new Error("오늘의 핵심 작업은 최대 3개까지 선택할 수 있습니다.");
     }
-    await tx.workdayItem.update({ where: { id: itemId }, data: { isKeyTask: !item.isKeyTask } });
+    const isKeyTask = !item.isKeyTask;
+    await tx.workdayItem.update({ where: { id: itemId }, data: { isKeyTask } });
+    if (isKeyTask && item.status === "completed") await recordKeyTaskCompletion(tx, itemId, new Date());
   });
   refreshWorkspace();
 }
@@ -466,9 +473,20 @@ export async function endFocus(form: FormData) {
     if (!session.endedAt) {
       const endedAt = new Date();
       await tx.focusSession.update({ where: { id: sessionId }, data: { endedAt, durationSeconds: Math.max(0, Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000)) } });
+      await recordFocusCompletion(tx, sessionId, endedAt);
     }
   });
   redirect("/");
+}
+
+export async function updateWeeklyFocusGoal(form: FormData) {
+  const weeklyFocusMinutes = z.coerce.number().int().min(30).max(10080).parse(form.get("weeklyFocusMinutes"));
+  await prisma.productivityGoal.upsert({
+    where: { id: "default" },
+    create: { weeklyFocusMinutes },
+    update: { weeklyFocusMinutes },
+  });
+  revalidatePath("/growth");
 }
 
 export async function carryItem(form: FormData) {

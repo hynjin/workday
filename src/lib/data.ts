@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { recordFocusCompletion } from "./productivity";
 import { dateKeyToDate, getBoundaryInstant, getWorkdayDate } from "./workday-date";
 
 export async function getOrCreateCurrentWorkday() {
@@ -13,6 +14,7 @@ export async function getOrCreateCurrentWorkday() {
       if (session) {
         const endedAt = boundary > session.startedAt ? boundary : session.startedAt;
         await tx.focusSession.update({ where: { id: session.id }, data: { endedAt, durationSeconds: Math.max(0, Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000)) } });
+        await recordFocusCompletion(tx, session.id, endedAt);
       }
       const endedAt = active.startedAt && active.startedAt > boundary ? active.startedAt : boundary;
       await tx.workday.update({ where: { id: active.id }, data: { status: "completed", endedAt } });
