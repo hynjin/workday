@@ -110,6 +110,8 @@ kbd { display:inline-grid; min-width:24px; min-height:22px; place-items:center; 
   .taskSchedulePicker input { min-width:0; max-width:none; flex:1; }
   .moreMenu>div { position:fixed; right:16px; left:16px; bottom:76px; top:auto; }
   .quickAddForm { right:16px; bottom:16px; }
+  .navRow,.appNav,.navSearch { min-width:0; max-width:100%; }
+  .appNav { width:100%; }
 }
 
 @media (max-width:480px) {
