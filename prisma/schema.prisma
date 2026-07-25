@@ -47,6 +47,7 @@ model Task {
   id               String        @id @default(cuid())
   projectId        String?
   sectionId        String?
+  parentTaskId     String?
   title            String
   status           TaskStatus    @default(active)
   reusable         Boolean       @default(true)
@@ -57,11 +58,14 @@ model Task {
   archivedAt       DateTime?
   project          Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   section          Section?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  parentTask       Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
+  subtasks         Task[]        @relation("TaskHierarchy")
   items            WorkdayItem[]
   recurrenceRule   RecurrenceRule?
 
   @@index([projectId, status])
   @@index([sectionId, sortOrder])
+  @@index([parentTaskId, status])
 }
 
 model RecurrenceRule {

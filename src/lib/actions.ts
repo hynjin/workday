@@ -108,12 +108,12 @@ export async function moveProjectTask(taskIdInput: string, sectionIdInput: strin
   const sectionId = z.string().min(1).nullable().parse(sectionIdInput);
   const targetIndex = z.number().int().min(0).parse(targetIndexInput);
   await prisma.$transaction(async (tx) => {
-    const task = await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active" } });
+    const task = await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active", parentTaskId: null } });
     if (!task.projectId) throw new Error("프로젝트 작업만 정렬할 수 있습니다.");
     if (sectionId) await tx.section.findFirstOrThrow({ where: { id: sectionId, projectId: task.projectId } });
 
     const projectTasks = await tx.task.findMany({
-      where: { projectId: task.projectId, status: "active" },
+      where: { projectId: task.projectId, status: "active", parentTaskId: null },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       select: { id: true, sectionId: true },
     });
@@ -128,6 +128,7 @@ export async function moveProjectTask(taskIdInput: string, sectionIdInput: strin
       where: { id },
       data: id === taskId ? { sectionId, sortOrder } : { sortOrder },
     })));
+    await tx.task.updateMany({ where: { parentTaskId: taskId }, data: { sectionId } });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   refreshWorkspace();
 }
@@ -154,7 +155,7 @@ export async function createTask(form: FormData) {
   const estimatedMinutes = estimatedMinutesFrom(form);
   if (projectId) await prisma.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
   const existing = await prisma.task.findFirst({
-    where: { projectId: projectId ?? null, title: { equals: title, mode: "insensitive" } },
+    where: { projectId: projectId ?? null, parentTaskId: null, title: { equals: title, mode: "insensitive" } },
   });
   if (existing) {
     if (existing.status === "archived") await prisma.task.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } });
@@ -162,11 +163,36 @@ export async function createTask(form: FormData) {
   refreshWorkspace();
 }
 
+export async function createSubtask(form: FormData) {
+  const parentTaskId = idFrom(form, "parentTaskId");
+  const title = titleFrom(form);
+  await prisma.$transaction(async (tx) => {
+    const parent = await tx.task.findFirstOrThrow({
+      where: { id: parentTaskId, status: "active", parentTaskId: null },
+    });
+    const duplicate = await tx.task.findFirst({
+      where: { parentTaskId, title: { equals: title, mode: "insensitive" } },
+    });
+    if (duplicate) throw new Error("같은 목록에 같은 이름의 작업이 이미 있습니다.");
+    const last = await tx.task.aggregate({ where: { parentTaskId, status: "active" }, _max: { sortOrder: true } });
+    await tx.task.create({
+      data: {
+        parentTaskId,
+        projectId: parent.projectId,
+        sectionId: parent.sectionId,
+        title,
+        sortOrder: (last._max.sortOrder ?? -1) + 1,
+      },
+    });
+  });
+  refreshWorkspace();
+}
+
 export async function updateTask(form: FormData) {
   const id = idFrom(form, "taskId"), title = titleFrom(form);
   const task = await prisma.task.findUniqueOrThrow({ where: { id } });
   const duplicate = await prisma.task.findFirst({
-    where: { projectId: task.projectId, title: { equals: title, mode: "insensitive" }, NOT: { id } },
+    where: { parentTaskId: task.parentTaskId, projectId: task.projectId, title: { equals: title, mode: "insensitive" }, NOT: { id } },
   });
   if (duplicate) throw new Error("같은 목록에 같은 이름의 작업이 이미 있습니다.");
   await prisma.$transaction(async (tx) => {
@@ -182,7 +208,11 @@ export async function updateTask(form: FormData) {
 export async function moveTaskToProject(form: FormData) {
   const taskId = idFrom(form, "taskId"), projectId = optionalIdFrom(form, "projectId");
   if (projectId) await prisma.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
-  await prisma.task.update({ where: { id: taskId }, data: { projectId, sectionId: null } });
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.findUniqueOrThrow({ where: { id: taskId } });
+    await tx.task.update({ where: { id: taskId }, data: { projectId, sectionId: null } });
+    if (!task.parentTaskId) await tx.task.updateMany({ where: { parentTaskId: taskId }, data: { projectId, sectionId: null } });
+  });
   refreshWorkspace();
 }
 
@@ -199,19 +229,24 @@ export async function archiveTask(form: FormData) {
   await prisma.$transaction(async (tx) => {
     await tx.workdayItem.deleteMany({
       where: {
-        taskId,
+        OR: [{ taskId }, { task: { parentTaskId: taskId } }],
         recurrenceRuleId: { not: null },
         status: "planned",
         workday: { workdayDate: { gte: dateKeyToDate(getWorkdayDate()) }, status: { not: "completed" } },
       },
     });
     await tx.task.update({ where: { id: taskId, status: "active" }, data: { status: "archived", archivedAt: new Date() } });
+    await tx.task.updateMany({ where: { parentTaskId: taskId, status: "active" }, data: { status: "archived", archivedAt: new Date() } });
   });
   refreshWorkspace();
 }
 
 export async function restoreTask(form: FormData) {
-  await prisma.task.update({ where: { id: idFrom(form, "taskId"), status: "archived" }, data: { status: "active", archivedAt: null } });
+  const taskId = idFrom(form, "taskId");
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.update({ where: { id: taskId, status: "archived" }, data: { status: "active", archivedAt: null } });
+    if (!task.parentTaskId) await tx.task.updateMany({ where: { parentTaskId: taskId, status: "archived" }, data: { status: "active", archivedAt: null } });
+  });
   refreshWorkspace();
 }
 
@@ -239,7 +274,7 @@ export async function quickAddTask(form: FormData) {
   const customDate = destination === "date" ? dateSchema.parse(form.get("date")) : null;
   if (projectId) await prisma.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
   await prisma.$transaction(async (tx) => {
-    let task = await tx.task.findFirst({ where: { projectId: projectId ?? null, title: { equals: title, mode: "insensitive" } } });
+    let task = await tx.task.findFirst({ where: { projectId: projectId ?? null, parentTaskId: null, title: { equals: title, mode: "insensitive" } } });
     if (task) task = await tx.task.update({ where: { id: task.id }, data: { status: "active", archivedAt: null } });
     else task = await tx.task.create({ data: { title, projectId, estimatedMinutes } });
     if (destination === "inbox") return;
@@ -368,7 +403,7 @@ export async function saveWorkdayItemToLibrary(form: FormData) {
   await prisma.$transaction(async (tx) => {
     const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId } });
     if (item.taskId) return;
-    let task = await tx.task.findFirst({ where: { projectId: null, title: { equals: item.titleSnapshot, mode: "insensitive" } } });
+    let task = await tx.task.findFirst({ where: { projectId: null, parentTaskId: null, title: { equals: item.titleSnapshot, mode: "insensitive" } } });
     if (task) task = await tx.task.update({ where: { id: task.id }, data: { status: "active", archivedAt: null } });
     else task = await tx.task.create({ data: { projectId: null, title: item.titleSnapshot } });
     const duplicate = await tx.workdayItem.findFirst({ where: { workdayId: item.workdayId, taskId: task.id, NOT: { id: item.id } } });

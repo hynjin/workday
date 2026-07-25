@@ -20,9 +20,9 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     prisma.project.findMany({
       where: { status: "active" },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      include: { tasks: { where: { status: "active" }, select: { id: true } } },
+      include: { tasks: { where: { status: "active", parentTaskId: null }, select: { id: true } } },
     }),
-    prisma.task.count({ where: { projectId: null, status: "active" } }),
+    prisma.task.count({ where: { projectId: null, status: "active", parentTaskId: null } }),
     prisma.project.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { _count: { select: { tasks: true } } } }),
     prisma.task.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { project: true } }),
   ]);
@@ -32,18 +32,25 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     include: {
       sections: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] },
       tasks: {
-        where: { status: "active" },
+        where: { status: "active", parentTaskId: null },
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         include: {
           recurrenceRule: true,
           items: { select: { status: true, focusSessions: true } },
+          subtasks: {
+            where: { status: "active" },
+            orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+            select: { id: true, title: true, items: { select: { status: true, focusSessions: true } } },
+          },
         },
       },
     },
   }) : null;
 
   const taskViews = selected ? sortTasks(selected.tasks.map(task => {
-    const sessions = task.items.flatMap(item => item.focusSessions);
+    const subtaskItems = task.subtasks.flatMap(subtask => subtask.items);
+    const allItems = [...task.items, ...subtaskItems];
+    const sessions = allItems.flatMap(item => item.focusSessions);
     const focusSeconds = sessions.reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
     return {
       id: task.id,
@@ -54,7 +61,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       estimatedMinutes: task.estimatedMinutes,
       focusSeconds,
       sessionCount: sessions.length,
-      completedCount: task.items.filter(item => item.status === "completed").length,
+      completedCount: allItems.filter(item => item.status === "completed").length,
       recurrenceRule: task.recurrenceRule ? {
         frequency: task.recurrenceRule.frequency,
         interval: task.recurrenceRule.interval,
@@ -63,6 +70,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         startsOn: task.recurrenceRule.startsOn.toISOString(),
         endsOn: task.recurrenceRule.endsOn?.toISOString() ?? null,
       } : null,
+      subtasks: task.subtasks.map(subtask => ({ id: subtask.id, title: subtask.title })),
     };
   }), sort) : [];
   const projectSeconds = taskViews.reduce((sum, task) => sum + task.focusSeconds, 0);

@@ -1,7 +1,7 @@
 import { AppNav } from "@/components/app-nav";
 import { ConfirmSubmit, EditableText } from "@/components/editable-text";
 import { TaskPlanningFields } from "@/components/task-planning-fields";
-import { archiveTask, deleteTask, moveTaskToProject, scheduleTaskForDate, updateTask } from "@/lib/actions";
+import { archiveTask, createSubtask, deleteTask, moveTaskToProject, scheduleTaskForDate, updateTask } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { dateKeyToDate, getWorkdayDate, nextDate } from "@/lib/workday-date";
@@ -16,9 +16,17 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const tomorrow = nextDate(dateKeyToDate(today)).toISOString().slice(0, 10);
   const [tasks, projects] = await Promise.all([
     prisma.task.findMany({
-      where: { projectId: null, status: "active" },
+      where: { projectId: null, status: "active", parentTaskId: null },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-      include: { recurrenceRule: true, items: { where: { workday: { workdayDate: { gte: dateKeyToDate(today) } } }, include: { workday: true }, orderBy: { workday: { workdayDate: "asc" } } } },
+      include: {
+        recurrenceRule: true,
+        items: { where: { workday: { workdayDate: { gte: dateKeyToDate(today) } } }, include: { workday: true }, orderBy: { workday: { workdayDate: "asc" } } },
+        subtasks: {
+          where: { status: "active" },
+          orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+          include: { recurrenceRule: true, items: { where: { workday: { workdayDate: { gte: dateKeyToDate(today) } } }, include: { workday: true }, orderBy: { workday: { workdayDate: "asc" } } } },
+        },
+      },
     }),
     prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }] }),
   ]);
@@ -38,6 +46,15 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           <ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’을 삭제할까요? 날짜별 기록의 제목은 유지됩니다.` : `Delete “${task.title}”? Workday snapshots will remain.`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit>
         </div>
         <TaskPlanningFields taskId={task.id} estimatedMinutes={task.estimatedMinutes} rule={task.recurrenceRule} locale={locale}/>
+        <details className="subtaskGroup">
+          <summary>{locale === "ko" ? "하위 작업" : "Subtasks"} <span>{task.subtasks.length}</span></summary>
+          <div className="subtaskList">{task.subtasks.map(subtask => <article className="subtaskRow" key={subtask.id}>
+            <div><EditableText action={updateTask} idName="taskId" id={subtask.id} value={subtask.title} label={locale === "ko" ? "하위 작업 이름 수정" : "Rename subtask"}/>{subtask.items.length > 0 && <small>{locale === "ko" ? "예정: " : "Scheduled: "}{subtask.items.map(item => item.workday.workdayDate.toISOString().slice(0,10)).join(", ")}</small>}</div>
+            <div className="subtaskActions"><form action={scheduleTaskForDate}><input type="hidden" name="taskId" value={subtask.id}/><input type="hidden" name="date" value={today}/><button className="textButton accent">{locale === "ko" ? "오늘" : "Today"}</button></form><form action={scheduleTaskForDate}><input type="hidden" name="taskId" value={subtask.id}/><input type="hidden" name="date" value={tomorrow}/><button className="textButton accent">{locale === "ko" ? "내일" : "Tomorrow"}</button></form><form action={archiveTask}><input type="hidden" name="taskId" value={subtask.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: subtask.id }} message={locale === "ko" ? `‘${subtask.title}’ 하위 작업을 삭제할까요?` : `Delete subtask “${subtask.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div>
+            <TaskPlanningFields taskId={subtask.id} estimatedMinutes={subtask.estimatedMinutes} rule={subtask.recurrenceRule} locale={locale}/>
+          </article>)}</div>
+          <form action={createSubtask} className="subtaskCreate"><input type="hidden" name="parentTaskId" value={task.id}/><input name="title" maxLength={120} required placeholder={locale === "ko" ? "새 하위 작업" : "New subtask"} aria-label={locale === "ko" ? "새 하위 작업 이름" : "New subtask name"}/><button className="textButton accent">{locale === "ko" ? "추가" : "Add"}</button></form>
+        </details>
       </article>)}
       {!tasks.length && <div className="emptyState"><p>{locale === "ko" ? "받은편지함이 비어 있습니다. 오른쪽 아래의 빠른 추가로 새 작업을 수집하세요." : "Inbox is clear. Use Quick add to capture a task."}</p></div>}
     </section>

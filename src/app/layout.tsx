@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n";
 import { QuickAdd } from "@/components/quick-add";
+import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { prisma } from "@/lib/prisma";
 import { generateOccurrences } from "@/lib/recurrence";
 import { getWorkdayDate } from "@/lib/workday-date";
@@ -18,5 +19,5 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const today = getWorkdayDate();
   await generateOccurrences({ from: today, to: today });
   const projects = await prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } });
-  return <html lang={locale}><body>{children}<QuickAdd projects={projects} locale={locale}/></body></html>;
+  return <html lang={locale}><body>{children}<KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} locale={locale}/></body></html>;
 }
