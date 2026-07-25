@@ -5,12 +5,15 @@ import { getWorkdayView } from "@/lib/data";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { dateKeyToDate, formatWorkdayDate, getWorkdayDate } from "@/lib/workday-date";
+import { generateOccurrences } from "@/lib/recurrence";
 
 export const dynamic = "force-dynamic";
 
 export default async function UpcomingPage() {
   const locale = await getLocale(), today = getWorkdayDate();
-  const workdays = await prisma.workday.findMany({ where: { workdayDate: { gt: dateKeyToDate(today) }, status: { not: "completed" }, items: { some: {} } }, orderBy: { workdayDate: "asc" } });
+  const visibleEnd = dateKeyToDate(today); visibleEnd.setUTCDate(visibleEnd.getUTCDate() + 60);
+  await generateOccurrences({ from: today, to: visibleEnd.toISOString().slice(0, 10) });
+  const workdays = await prisma.workday.findMany({ where: { workdayDate: { gt: dateKeyToDate(today), lte: visibleEnd }, status: { not: "completed" }, items: { some: {} } }, orderBy: { workdayDate: "asc" } });
   const views = await Promise.all(workdays.map(day => getWorkdayView(day.id)));
   return <main className="shell"><AppNav/>
     <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "미래 계획" : "FUTURE PLAN"}</p><h1>{locale === "ko" ? "예정" : "Upcoming"}</h1><p className="lede">{locale === "ko" ? "앞으로 계획한 작업을 날짜별로 보고, 다른 날짜로 이동하거나 복사할 수 있습니다." : "Review future work by date, then move or copy items as plans change."}</p></div><span className="status">{views.reduce((sum, day) => sum + day.items.length, 0)}{locale === "ko" ? "개" : ""}</span></header>

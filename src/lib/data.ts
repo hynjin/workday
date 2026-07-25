@@ -41,7 +41,7 @@ export async function getWorkdayView(id: string) {
   const now = Date.now();
   const items = workday.items.map((item) => {
     const seconds = item.focusSessions.reduce((sum, session) => sum + (session.durationSeconds ?? (session.endedAt ? 0 : Math.max(0, Math.floor((now - session.startedAt.getTime()) / 1000)))), 0);
-    return { ...item, title: item.titleSnapshot, seconds, sessionCount: item.focusSessions.length, projectTitle: item.task?.project?.title ?? null, focusSessions: undefined, task: undefined };
+    return { ...item, title: item.titleSnapshot, seconds, sessionCount: item.focusSessions.length, projectTitle: item.task?.project?.title ?? null, estimatedMinutes: item.task?.estimatedMinutes ?? null, focusSessions: undefined, task: undefined };
   });
   return { ...workday, items, totalSeconds: items.reduce((sum, item) => sum + item.seconds, 0), totalSessions: items.reduce((sum, item) => sum + item.sessionCount, 0) };
 }

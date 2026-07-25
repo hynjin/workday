@@ -29,6 +29,12 @@ enum ProjectViewMode {
   board
 }
 
+enum RecurrenceFrequency {
+  daily
+  weekly
+  monthly
+}
+
 model Task {
   id               String        @id @default(cuid())
   projectId        String?
@@ -44,9 +50,28 @@ model Task {
   project          Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
   section          Section?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   items            WorkdayItem[]
+  recurrenceRule   RecurrenceRule?
 
   @@index([projectId, status])
   @@index([sectionId, sortOrder])
+}
+
+model RecurrenceRule {
+  id             String              @id @default(cuid())
+  taskId         String              @unique
+  frequency      RecurrenceFrequency
+  interval       Int                 @default(1)
+  weekdays       Int[]               @default([])
+  monthDay       Int?
+  startsOn       DateTime            @db.Date
+  endsOn         DateTime?           @db.Date
+  generatedUntil DateTime?           @db.Date
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+  task           Task                @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items          WorkdayItem[]
+
+  @@index([generatedUntil])
 }
 
 model Project {
@@ -96,12 +121,14 @@ model WorkdayItem {
   isKeyTask         Boolean           @default(false)
   sortOrder         Int               @default(0)
   carriedFromItemId String?
+  recurrenceRuleId  String?
   createdAt         DateTime          @default(now())
   completedAt       DateTime?
   workday           Workday           @relation(fields: [workdayId], references: [id], onDelete: Cascade)
   task              Task?             @relation(fields: [taskId], references: [id], onDelete: SetNull)
   carriedFrom       WorkdayItem?       @relation("CarryChain", fields: [carriedFromItemId], references: [id], onDelete: SetNull)
   carriedTo         WorkdayItem[]      @relation("CarryChain")
+  recurrenceRule    RecurrenceRule?    @relation(fields: [recurrenceRuleId], references: [id], onDelete: SetNull)
   focusSessions     FocusSession[]
 
   @@unique([workdayId, carriedFromItemId])
@@ -110,6 +137,7 @@ model WorkdayItem {
   @@index([workdayId, sortOrder])
   @@index([taskId])
   @@index([carriedFromItemId])
+  @@index([recurrenceRuleId])
 }
 
 model FocusSession {

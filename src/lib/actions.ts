@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "./prisma";
+import { generateOccurrences } from "./recurrence";
 import { dateKeyToDate, getWorkdayDate, nextDate } from "./workday-date";
 
 const titleSchema = z.string().trim().min(1, "제목을 입력해 주세요.").max(120, "제목은 120자 이하여야 합니다.");
@@ -15,7 +16,19 @@ const idFrom = (form: FormData, key: string) => idSchema.parse(form.get(key));
 const optionalIdFrom = (form: FormData, key: string) => z.string().optional().parse(form.get(key) || undefined);
 
 function refreshWorkspace() {
-  ["/", "/inbox", "/upcoming", "/projects", "/library"].forEach((path) => revalidatePath(path));
+  ["/", "/inbox", "/upcoming", "/projects", "/library", "/search"].forEach((path) => revalidatePath(path));
+}
+
+function estimatedMinutesFrom(form: FormData) {
+  const value = form.get("estimatedMinutes");
+  if (value === null || value === "") return null;
+  return z.coerce.number().int().min(1).max(1440).parse(value);
+}
+
+function futureDateKey(days: number) {
+  const date = dateKeyToDate(getWorkdayDate());
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
 }
 
 export async function createProject(form: FormData) {
@@ -54,13 +67,14 @@ export async function deleteProject(form: FormData) {
 
 export async function createTask(form: FormData) {
   const title = titleFrom(form), projectId = optionalIdFrom(form, "projectId");
+  const estimatedMinutes = estimatedMinutesFrom(form);
   if (projectId) await prisma.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
   const existing = await prisma.task.findFirst({
     where: { projectId: projectId ?? null, title: { equals: title, mode: "insensitive" } },
   });
   if (existing) {
     if (existing.status === "archived") await prisma.task.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } });
-  } else await prisma.task.create({ data: { projectId, title } });
+  } else await prisma.task.create({ data: { projectId, title, estimatedMinutes } });
   refreshWorkspace();
 }
 
@@ -88,8 +102,27 @@ export async function moveTaskToProject(form: FormData) {
   refreshWorkspace();
 }
 
+export async function updateTaskEstimate(form: FormData) {
+  await prisma.task.update({
+    where: { id: idFrom(form, "taskId"), status: "active" },
+    data: { estimatedMinutes: estimatedMinutesFrom(form) },
+  });
+  refreshWorkspace();
+}
+
 export async function archiveTask(form: FormData) {
-  await prisma.task.update({ where: { id: idFrom(form, "taskId"), status: "active" }, data: { status: "archived", archivedAt: new Date() } });
+  const taskId = idFrom(form, "taskId");
+  await prisma.$transaction(async (tx) => {
+    await tx.workdayItem.deleteMany({
+      where: {
+        taskId,
+        recurrenceRuleId: { not: null },
+        status: "planned",
+        workday: { workdayDate: { gte: dateKeyToDate(getWorkdayDate()) }, status: { not: "completed" } },
+      },
+    });
+    await tx.task.update({ where: { id: taskId, status: "active" }, data: { status: "archived", archivedAt: new Date() } });
+  });
   refreshWorkspace();
 }
 
@@ -99,12 +132,24 @@ export async function restoreTask(form: FormData) {
 }
 
 export async function deleteTask(form: FormData) {
-  await prisma.task.delete({ where: { id: idFrom(form, "taskId") } });
+  const taskId = idFrom(form, "taskId");
+  await prisma.$transaction(async (tx) => {
+    await tx.workdayItem.deleteMany({
+      where: {
+        taskId,
+        recurrenceRuleId: { not: null },
+        status: "planned",
+        workday: { workdayDate: { gte: dateKeyToDate(getWorkdayDate()) }, status: { not: "completed" } },
+      },
+    });
+    await tx.task.delete({ where: { id: taskId } });
+  });
   refreshWorkspace();
 }
 
 export async function quickAddTask(form: FormData) {
   const title = titleFrom(form);
+  const estimatedMinutes = estimatedMinutesFrom(form);
   const projectId = optionalIdFrom(form, "projectId");
   const destination = z.enum(["inbox", "today", "tomorrow", "date"]).parse(form.get("destination") || "inbox");
   const customDate = destination === "date" ? dateSchema.parse(form.get("date")) : null;
@@ -112,7 +157,7 @@ export async function quickAddTask(form: FormData) {
   await prisma.$transaction(async (tx) => {
     let task = await tx.task.findFirst({ where: { projectId: projectId ?? null, title: { equals: title, mode: "insensitive" } } });
     if (task) task = await tx.task.update({ where: { id: task.id }, data: { status: "active", archivedAt: null } });
-    else task = await tx.task.create({ data: { title, projectId } });
+    else task = await tx.task.create({ data: { title, projectId, estimatedMinutes } });
     if (destination === "inbox") return;
     const today = getWorkdayDate();
     const dateKey = destination === "today" ? today : destination === "tomorrow" ? nextDate(dateKeyToDate(today)).toISOString().slice(0, 10) : customDate!;
@@ -124,6 +169,67 @@ export async function quickAddTask(form: FormData) {
       create: { workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title },
       update: {},
     });
+  });
+  refreshWorkspace();
+}
+
+export async function updateRecurrenceRule(form: FormData) {
+  const taskId = idFrom(form, "taskId");
+  const frequency = z.enum(["daily", "weekly", "monthly"]).parse(form.get("frequency"));
+  const interval = z.coerce.number().int().min(1).max(365).parse(form.get("interval") || 1);
+  const startsOnKey = dateSchema.parse(form.get("startsOn"));
+  const endsOnValue = form.get("endsOn");
+  const endsOnKey = endsOnValue ? dateSchema.parse(endsOnValue) : null;
+  if (endsOnKey && endsOnKey < startsOnKey) throw new Error("반복 종료일은 시작일보다 빠를 수 없습니다.");
+  const weekdays = frequency === "weekly"
+    ? z.array(z.coerce.number().int().min(0).max(6)).min(1).parse(form.getAll("weekdays"))
+    : [];
+  const monthDay = frequency === "monthly"
+    ? z.coerce.number().int().min(1).max(31).parse(form.get("monthDay"))
+    : null;
+  const today = getWorkdayDate();
+
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active" }, include: { recurrenceRule: true } });
+    if (task.recurrenceRule) {
+      await tx.workdayItem.deleteMany({
+        where: {
+          recurrenceRuleId: task.recurrenceRule.id,
+          status: "planned",
+          workday: { workdayDate: { gte: dateKeyToDate(today) }, status: { not: "completed" } },
+        },
+      });
+    }
+    await tx.recurrenceRule.upsert({
+      where: { taskId },
+      create: {
+        taskId, frequency, interval, weekdays, monthDay,
+        startsOn: dateKeyToDate(startsOnKey), endsOn: endsOnKey ? dateKeyToDate(endsOnKey) : null,
+      },
+      update: {
+        frequency, interval, weekdays, monthDay,
+        startsOn: dateKeyToDate(startsOnKey), endsOn: endsOnKey ? dateKeyToDate(endsOnKey) : null, generatedUntil: null,
+      },
+    });
+  });
+  await generateOccurrences({ from: today, to: futureDateKey(60) });
+  refreshWorkspace();
+}
+
+export async function deleteRecurrenceRule(form: FormData) {
+  const taskId = idFrom(form, "taskId");
+  const today = getWorkdayDate();
+  await prisma.$transaction(async (tx) => {
+    const rule = await tx.recurrenceRule.findUnique({ where: { taskId } });
+    if (!rule) return;
+    await tx.workdayItem.deleteMany({
+      where: {
+        recurrenceRuleId: rule.id,
+        status: "planned",
+        workday: { workdayDate: { gte: dateKeyToDate(today) }, status: { not: "completed" } },
+      },
+    });
+    await tx.recurrenceRule.delete({ where: { id: rule.id } });
   });
   refreshWorkspace();
 }
@@ -238,6 +344,22 @@ export async function toggleItemComplete(form: FormData) {
     if (item.workday.status !== "active") throw new Error("진행 중인 작업일만 변경할 수 있습니다.");
     const completed = item.status === "completed";
     await tx.workdayItem.update({ where: { id: itemId }, data: { status: completed ? "planned" : "completed", completedAt: completed ? null : new Date() } });
+  });
+  refreshWorkspace();
+}
+
+export async function toggleKeyTask(form: FormData) {
+  const itemId = idFrom(form, "itemId");
+  await prisma.$transaction(async (tx) => {
+    const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
+    if (item.workday.workdayDate.toISOString().slice(0, 10) !== getWorkdayDate() || item.workday.status === "completed") {
+      throw new Error("오늘 작업에서만 핵심 작업을 변경할 수 있습니다.");
+    }
+    if (!item.isKeyTask) {
+      const count = await tx.workdayItem.count({ where: { workdayId: item.workdayId, isKeyTask: true } });
+      if (count >= 3) throw new Error("오늘의 핵심 작업은 최대 3개까지 선택할 수 있습니다.");
+    }
+    await tx.workdayItem.update({ where: { id: itemId }, data: { isKeyTask: !item.isKeyTask } });
   });
   refreshWorkspace();
 }
