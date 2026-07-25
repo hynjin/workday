@@ -16,13 +16,12 @@ export const dynamic = "force-dynamic";
 export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ project?: string; sort?: string }> }) {
   const [params, locale] = await Promise.all([searchParams, getLocale()]);
   const sort = parseTaskSort(params.sort);
-  const [projects, inboxCount, archivedProjects, archivedTasks] = await Promise.all([
+  const [projects, archivedProjects, archivedTasks] = await Promise.all([
     prisma.project.findMany({
       where: { status: "active" },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       include: { tasks: { where: { status: "active", parentTaskId: null }, select: { id: true } } },
     }),
-    prisma.task.count({ where: { projectId: null, status: "active", parentTaskId: null } }),
     prisma.project.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { _count: { select: { tasks: true } } } }),
     prisma.task.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { project: true } }),
   ]);
@@ -82,7 +81,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     <div className="projectsWorkspace">
       <aside className="panel projectRail">
         <div className="railHeading"><h2>{locale === "ko" ? "목록" : "Lists"}</h2></div>
-        <nav><Link className="inboxLink" href="/inbox"><span>{locale === "ko" ? "받은편지함" : "Inbox"}</span><small>{inboxCount}</small></Link>{projects.map(project => <Link className={project.id === selected?.id ? "active" : ""} href={`/projects?project=${project.id}`} key={project.id}><span>{project.title}</span><small>{project.tasks.length}</small></Link>)}</nav>
+        <nav>{projects.map(project => <Link className={project.id === selected?.id ? "active" : ""} href={`/projects?project=${project.id}`} key={project.id}><span>{project.title}</span><small>{project.tasks.length}</small></Link>)}</nav>
         <details className="categoryCreate"><summary>{locale === "ko" ? "새 프로젝트" : "New project"}</summary><form action={createProject}><input name="title" placeholder={locale === "ko" ? "프로젝트 이름" : "Project name"} aria-label={locale === "ko" ? "프로젝트 이름" : "Project name"} required maxLength={120}/><button className="button full">{locale === "ko" ? "프로젝트 만들기" : "Create project"}</button></form></details>
       </aside>
       <section className="projectWorkspaceMain">{selected ? <>

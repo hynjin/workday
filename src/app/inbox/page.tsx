@@ -1,10 +1,11 @@
 import { AppNav } from "@/components/app-nav";
 import { ConfirmSubmit, EditableText } from "@/components/editable-text";
 import { TaskPlanningFields } from "@/components/task-planning-fields";
-import { archiveTask, createSubtask, deleteTask, moveTaskToProject, scheduleTaskForDate, updateTask } from "@/lib/actions";
+import { TaskSchedulePicker } from "@/components/task-schedule-picker";
+import { archiveTask, createSubtask, deleteTask, moveTaskToProject, updateTask } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { dateKeyToDate, getWorkdayDate, nextDate } from "@/lib/workday-date";
+import { dateKeyToDate, getWorkdayDate } from "@/lib/workday-date";
 import { parseTaskSort, sortTasks } from "@/lib/task-sort";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,6 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
   const [locale, params] = await Promise.all([getLocale(), searchParams]);
   const sort = parseTaskSort(params.sort);
   const today = getWorkdayDate();
-  const tomorrow = nextDate(dateKeyToDate(today)).toISOString().slice(0, 10);
   const [tasks, projects] = await Promise.all([
     prisma.task.findMany({
       where: { projectId: null, status: "active", parentTaskId: null },
@@ -38,9 +38,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
       {sortedTasks.map(task => <article className="inboxTask" key={task.id}>
         <div className="inboxTaskMain"><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={locale === "ko" ? "작업 이름 수정" : "Rename task"}/>{task.items.length > 0 && <small>{locale === "ko" ? "예정: " : "Scheduled: "}{task.items.map(item => item.workday.workdayDate.toISOString().slice(0,10)).join(", ")}</small>}</div>
         <div className="taskPlanActions">
-          <form action={scheduleTaskForDate}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="date" value={today}/><button className="textButton accent">{locale === "ko" ? "오늘" : "Today"}</button></form>
-          <form action={scheduleTaskForDate}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="date" value={tomorrow}/><button className="textButton accent">{locale === "ko" ? "내일" : "Tomorrow"}</button></form>
-          <form action={scheduleTaskForDate} className="dateAction"><input type="hidden" name="taskId" value={task.id}/><input type="date" name="date" min={today} defaultValue={today}/><button className="textButton">{locale === "ko" ? "계획" : "Plan"}</button></form>
+          <TaskSchedulePicker taskId={task.id} locale={locale}/>
           {projects.length > 0 && <form action={moveTaskToProject} className="projectAction"><input type="hidden" name="taskId" value={task.id}/><select name="projectId" aria-label={locale === "ko" ? "프로젝트 선택" : "Choose project"} defaultValue=""><option value="" disabled>{locale === "ko" ? "프로젝트로 이동" : "Move to project"}</option>{projects.map(project => <option value={project.id} key={project.id}>{project.title}</option>)}</select><button className="textButton">{locale === "ko" ? "이동" : "Move"}</button></form>}
           <form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form>
           <ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’을 삭제할까요? 날짜별 기록의 제목은 유지됩니다.` : `Delete “${task.title}”? Workday snapshots will remain.`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit>
@@ -50,7 +48,7 @@ export default async function InboxPage({ searchParams }: { searchParams: Promis
           <summary>{locale === "ko" ? "하위 작업" : "Subtasks"} <span>{task.subtasks.length}</span></summary>
           <div className="subtaskList">{task.subtasks.map(subtask => <article className="subtaskRow" key={subtask.id}>
             <div><EditableText action={updateTask} idName="taskId" id={subtask.id} value={subtask.title} label={locale === "ko" ? "하위 작업 이름 수정" : "Rename subtask"}/>{subtask.items.length > 0 && <small>{locale === "ko" ? "예정: " : "Scheduled: "}{subtask.items.map(item => item.workday.workdayDate.toISOString().slice(0,10)).join(", ")}</small>}</div>
-            <div className="subtaskActions"><form action={scheduleTaskForDate}><input type="hidden" name="taskId" value={subtask.id}/><input type="hidden" name="date" value={today}/><button className="textButton accent">{locale === "ko" ? "오늘" : "Today"}</button></form><form action={scheduleTaskForDate}><input type="hidden" name="taskId" value={subtask.id}/><input type="hidden" name="date" value={tomorrow}/><button className="textButton accent">{locale === "ko" ? "내일" : "Tomorrow"}</button></form><form action={archiveTask}><input type="hidden" name="taskId" value={subtask.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: subtask.id }} message={locale === "ko" ? `‘${subtask.title}’ 하위 작업을 삭제할까요?` : `Delete subtask “${subtask.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div>
+            <div className="subtaskActions"><TaskSchedulePicker taskId={subtask.id} locale={locale} compact/><form action={archiveTask}><input type="hidden" name="taskId" value={subtask.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: subtask.id }} message={locale === "ko" ? `‘${subtask.title}’ 하위 작업을 삭제할까요?` : `Delete subtask “${subtask.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div>
             <TaskPlanningFields taskId={subtask.id} estimatedMinutes={subtask.estimatedMinutes} rule={subtask.recurrenceRule} locale={locale}/>
           </article>)}</div>
           <form action={createSubtask} className="subtaskCreate"><input type="hidden" name="parentTaskId" value={task.id}/><input name="title" maxLength={120} required placeholder={locale === "ko" ? "새 하위 작업" : "New subtask"} aria-label={locale === "ko" ? "새 하위 작업 이름" : "New subtask name"}/><button className="textButton accent">{locale === "ko" ? "추가" : "Add"}</button></form>

@@ -5,7 +5,6 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "./prisma";
-import { recordFocusCompletion, recordKeyTaskCompletion, recordTaskCompletion, recordWorkdayActive } from "./productivity";
 import { generateOccurrences } from "./recurrence";
 import { dateKeyToDate, getWorkdayDate, nextDate } from "./workday-date";
 
@@ -173,7 +172,20 @@ export async function createSubtask(form: FormData) {
     const duplicate = await tx.task.findFirst({
       where: { parentTaskId, title: { equals: title, mode: "insensitive" } },
     });
-    if (duplicate) throw new Error("같은 목록에 같은 이름의 작업이 이미 있습니다.");
+    if (duplicate) {
+      if (duplicate.status === "archived") {
+        await tx.task.update({
+          where: { id: duplicate.id },
+          data: {
+            status: "active",
+            archivedAt: null,
+            projectId: parent.projectId,
+            sectionId: parent.sectionId,
+          },
+        });
+      }
+      return;
+    }
     const last = await tx.task.aggregate({ where: { parentTaskId, status: "active" }, _max: { sortOrder: true } });
     await tx.task.create({
       data: {
@@ -283,13 +295,18 @@ export async function quickAddTask(form: FormData) {
     if (dateKey < today) throw new Error("지난 날짜에는 새 작업을 추가할 수 없습니다.");
     const workday = await tx.workday.upsert({ where: { workdayDate: dateKeyToDate(dateKey) }, create: { workdayDate: dateKeyToDate(dateKey) }, update: {} });
     if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
-    await tx.workdayItem.upsert({
-      where: { workdayId_taskId: { workdayId: workday.id, taskId: task.id } },
-      create: { workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title },
-      update: {},
+    await tx.workdayItem.createMany({
+      data: [{ workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title }],
+      skipDuplicates: true,
     });
   });
   refreshWorkspace();
+  return { success: true };
+}
+
+export async function quickAddTaskState(_state: { success: boolean; nonce: number }, form: FormData) {
+  await quickAddTask(form);
+  return { success: true, nonce: Date.now() };
 }
 
 export async function updateRecurrenceRule(form: FormData) {
@@ -361,10 +378,9 @@ export async function scheduleTaskForDate(form: FormData) {
     const task = await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active" } });
     const workday = await tx.workday.upsert({ where: { workdayDate: dateKeyToDate(dateKey) }, create: { workdayDate: dateKeyToDate(dateKey) }, update: {} });
     if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
-    await tx.workdayItem.upsert({
-      where: { workdayId_taskId: { workdayId: workday.id, taskId } },
-      create: { workdayId: workday.id, taskId, titleSnapshot: task.title, legacyTitle: task.title },
-      update: {},
+    await tx.workdayItem.createMany({
+      data: [{ workdayId: workday.id, taskId, titleSnapshot: task.title, legacyTitle: task.title }],
+      skipDuplicates: true,
     });
   });
   refreshWorkspace();
@@ -451,9 +467,7 @@ export async function startWorkday(form: FormData) {
     const workday = await tx.workday.findUniqueOrThrow({ where: { id }, include: { _count: { select: { items: true } } } });
     if (workday.status !== "planning" || !workday._count.items) throw new Error("할 일을 하나 이상 추가해 주세요.");
     if (await tx.workday.findFirst({ where: { status: "active", NOT: { id } } })) throw new Error("이미 진행 중인 작업일이 있습니다.");
-    const startedAt = new Date();
-    await tx.workday.update({ where: { id }, data: { status: "active", startedAt } });
-    await recordWorkdayActive(tx, id, startedAt);
+    await tx.workday.update({ where: { id }, data: { status: "active", startedAt: new Date() } });
   });
   redirect("/");
 }
@@ -466,26 +480,26 @@ export async function toggleItemComplete(form: FormData) {
     const completed = item.status === "completed";
     const completedAt = completed ? null : new Date();
     await tx.workdayItem.update({ where: { id: itemId }, data: { status: completed ? "planned" : "completed", completedAt } });
-    if (completedAt) await recordTaskCompletion(tx, itemId, completedAt);
   });
   refreshWorkspace();
 }
 
-export async function toggleKeyTask(form: FormData) {
-  const itemId = idFrom(form, "itemId");
+export async function reorderWorkdayItem(itemIdInput: string, targetIndexInput: number) {
+  const itemId = idSchema.parse(itemIdInput);
+  const targetIndex = z.number().int().min(0).parse(targetIndexInput);
   await prisma.$transaction(async (tx) => {
     const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
-    if (item.workday.workdayDate.toISOString().slice(0, 10) !== getWorkdayDate() || item.workday.status === "completed") {
-      throw new Error("오늘 작업에서만 핵심 작업을 변경할 수 있습니다.");
+    if (item.workday.workdayDate.toISOString().slice(0, 10) !== getWorkdayDate()) {
+      throw new Error("오늘 작업만 순서를 변경할 수 있습니다.");
     }
-    if (!item.isKeyTask) {
-      const count = await tx.workdayItem.count({ where: { workdayId: item.workdayId, isKeyTask: true } });
-      if (count >= 3) throw new Error("오늘의 핵심 작업은 최대 3개까지 선택할 수 있습니다.");
-    }
-    const isKeyTask = !item.isKeyTask;
-    await tx.workdayItem.update({ where: { id: itemId }, data: { isKeyTask } });
-    if (isKeyTask && item.status === "completed") await recordKeyTaskCompletion(tx, itemId, new Date());
-  });
+    const ids = (await tx.workdayItem.findMany({
+      where: { workdayId: item.workdayId },
+      orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    })).map(value => value.id).filter(id => id !== itemId);
+    ids.splice(Math.min(targetIndex, ids.length), 0, itemId);
+    await Promise.all(ids.map((id, sortOrder) => tx.workdayItem.update({ where: { id }, data: { sortOrder } })));
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   refreshWorkspace();
 }
 
@@ -508,7 +522,6 @@ export async function endFocus(form: FormData) {
     if (!session.endedAt) {
       const endedAt = new Date();
       await tx.focusSession.update({ where: { id: sessionId }, data: { endedAt, durationSeconds: Math.max(0, Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000)) } });
-      await recordFocusCompletion(tx, sessionId, endedAt);
     }
   });
   redirect("/");

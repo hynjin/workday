@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
 import { WorkdayCalendar } from "@/components/workday-calendar";
-import { saveWorkdayItemToLibrary, startFocus, startWorkday, toggleItemComplete, toggleKeyTask } from "@/lib/actions";
+import { WorkdayTaskList } from "@/components/workday-task-list";
+import { startWorkday } from "@/lib/actions";
 import { getOrCreateCurrentWorkday, getWorkdayView } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n";
@@ -21,8 +22,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const selected = selectedKey === todayKey
     ? current
     : await prisma.workday.findUnique({ where: { workdayDate: dateKeyToDate(selectedKey) } });
-  const workday = selected ?? current;
-  const view = await getWorkdayView(workday.id);
+  const view = selected ? await getWorkdayView(selected.id) : {
+    id: "",
+    workdayDate: dateKeyToDate(selectedKey),
+    status: (selectedKey < todayKey ? "completed" : "planning") as "completed" | "planning",
+    items: [],
+    totalSeconds: 0,
+    totalSessions: 0,
+  };
   const activeSession = await prisma.focusSession.findFirst({ where: { endedAt: null }, select: { id: true } });
   if (activeSession && selectedKey === todayKey) return <main className="shell centered"><p className="eyebrow">{locale === "ko" ? "진행 중인 세션" : "ACTIVE SESSION"}</p><h1>{locale === "ko" ? "집중을 이어가세요" : "Keep your focus going"}</h1><Link className="button" href={`/focus/${activeSession.id}`}>{locale === "ko" ? "타이머로 돌아가기" : "Return to timer"}</Link></main>;
 
@@ -35,32 +42,28 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const days = Array.from({ length: dayCount }, (_, index) => {
     const key = `${monthKey}-${String(index + 1).padStart(2, "0")}`;
     const status = recordMap.get(key);
-    return { key, hasWorkday: Boolean(status), completed: status === "completed", selected: key === view.workdayDate.toISOString().slice(0, 10), today: key === todayKey };
+    return { key, hasWorkday: Boolean(status), completed: status === "completed", selected: key === selectedKey, today: key === todayKey };
   });
   const done = view.items.filter(item => item.status === "completed");
-  const keyTasks = view.items.filter(item => item.isKeyTask);
-  const isToday = view.workdayDate.toISOString().slice(0, 10) === todayKey;
+  const isToday = selectedKey === todayKey;
+  const isPast = selectedKey < todayKey;
+  const isFuture = selectedKey > todayKey;
   const actionable = isToday && view.status === "active";
   const planning = isToday && view.status === "planning";
   const statusLabel = view.status === "completed" ? (locale === "ko" ? "기록" : "History") : view.status === "active" ? (locale === "ko" ? "진행 중" : "Active") : (locale === "ko" ? "준비 중" : "Planning");
 
   return <main className="shell">
     <AppNav />
-    <header className="pageHeader"><div><p className="eyebrow">{formatWorkdayDate(view.workdayDate, locale)} {locale === "ko" ? "작업일" : "WORKDAY"}</p><h1>{isToday ? (locale === "ko" ? "오늘의 작업일" : "Today’s workday") : (locale === "ko" ? "작업일 기록" : "Workday record")}</h1><p className="lede">{locale === "ko" ? "실행과 기록을 한 화면에서 확인하세요. 달력으로 다른 날짜의 작업일도 바로 볼 수 있습니다." : "Work and review in one place. Use the calendar to open any recorded workday."}</p></div><span className="status">{statusLabel}</span></header>
+    <header className="pageHeader"><div><p className="eyebrow">{formatWorkdayDate(view.workdayDate, locale)} {locale === "ko" ? "작업일" : "WORKDAY"}</p><h1>{isToday ? (locale === "ko" ? "오늘의 작업일" : "Today’s workday") : isPast ? (locale === "ko" ? "작업일 기록" : "Workday record") : (locale === "ko" ? "작업일 계획" : "Workday plan")}</h1><p className="lede">{locale === "ko" ? "과거 기록, 오늘 실행, 미래 계획을 달력에서 한 흐름으로 확인하세요." : "Use one calendar for past records, today’s execution, and future plans."}</p></div><span className="status">{statusLabel}</span></header>
 
     <div className="workdayHub">
       <div className="workdayMain">
-        <section className="summaryStats"><div><span>{locale === "ko" ? "총 집중" : "Total focus"}</span><strong>{formatDuration(view.totalSeconds, false, locale)}</strong></div><div><span>{locale === "ko" ? "집중 세션" : "Sessions"}</span><strong>{view.totalSessions}{locale === "ko" ? "회" : ""}</strong></div><div><span>{locale === "ko" ? "완료" : "Completed"}</span><strong>{done.length}</strong></div><div><span>{locale === "ko" ? "오늘의 핵심" : "Key tasks"}</span><strong>{keyTasks.length}/3</strong></div></section>
+        <section className="summaryStats three"><div><span>{locale === "ko" ? "총 집중" : "Total focus"}</span><strong>{formatDuration(view.totalSeconds, false, locale)}</strong></div><div><span>{locale === "ko" ? "집중 세션" : "Sessions"}</span><strong>{view.totalSessions}{locale === "ko" ? "회" : ""}</strong></div><div><span>{locale === "ko" ? "완료" : "Completed"}</span><strong>{done.length}</strong></div></section>
         <section className="panel taskPanel">
           <div className="sectionTitle"><h2>{locale === "ko" ? "작업 목록" : "Tasks"}</h2><Link className="quietLink" href="/inbox">{locale === "ko" ? "받은편지함에서 계획하기" : "Plan from Inbox"} <span aria-hidden="true">→</span></Link></div>
-          <div className="workList">{view.items.map(item => <article className={`workItem ${item.status === "completed" ? "done" : ""}`} key={item.id}>
-            <div className="workItemBody"><div className="taskTitleLine"><h3>{item.title}</h3>{item.isKeyTask && <span className="keyBadge">{locale === "ko" ? "핵심" : "Key"}</span>}<span className="itemCategory">{item.parentTitle ? `${item.parentTitle} › ` : ""}{item.projectTitle ?? (item.taskId ? (locale === "ko" ? "받은편지함" : "Inbox") : (locale === "ko" ? "하루 작업" : "One-off"))}</span></div><p>{formatDuration(item.seconds, false, locale)} · {item.sessionCount} {locale === "ko" ? "회 집중" : "sessions"}{item.estimatedMinutes ? ` · ${locale === "ko" ? "예상" : "Est."} ${item.estimatedMinutes}${locale === "ko" ? "분" : "m"}` : ""}</p>
-              {!item.taskId && view.status !== "completed" && <form action={saveWorkdayItemToLibrary} className="promoteForm"><input type="hidden" name="itemId" value={item.id}/><button className="textButton accent">{locale === "ko" ? "반복 목록에 저장" : "Save to library"}</button><small>{locale === "ko" ? "받은편지함에 저장됩니다" : "Saves to Inbox"}</small></form>}
-            </div>
-            {(actionable || planning) && <div className="actions"><form action={toggleKeyTask}><input type="hidden" name="itemId" value={item.id}/><button className={`keyButton ${item.isKeyTask ? "active" : ""}`} aria-label={item.isKeyTask ? (locale === "ko" ? "핵심 작업 해제" : "Remove key task") : (locale === "ko" ? "핵심 작업으로 지정" : "Mark as key task")} aria-pressed={item.isKeyTask}>★</button></form>{actionable && <>{item.status !== "completed" && <form action={startFocus}><input type="hidden" name="itemId" value={item.id}/><button className="button secondary">{locale === "ko" ? "집중 시작" : "Start focus"}</button></form>}<form action={toggleItemComplete}><input type="hidden" name="itemId" value={item.id}/><button className="button">{item.status === "completed" ? (locale === "ko" ? "완료 취소" : "Undo") : (locale === "ko" ? "완료" : "Complete")}</button></form></>}</div>}
-          </article>)}</div>
-          {!view.items.length && <div className="emptyState"><p>{locale === "ko" ? "이 작업일에 아직 작업이 없습니다." : "There are no tasks in this workday yet."}</p><Link className="button secondary" href="/inbox">{locale === "ko" ? "받은편지함에서 계획하기" : "Plan from Inbox"}</Link></div>}
-          {planning && view.items.length > 0 && <form action={startWorkday}><input type="hidden" name="workdayId" value={view.id}/><button className="button full">{locale === "ko" ? "작업일 시작" : "Start workday"}</button></form>}
+          <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} historical={isPast}/>
+          {!view.items.length && <div className="emptyState"><p>{isPast ? (locale === "ko" ? "이 날짜에는 기록된 작업이 없습니다." : "No work was recorded on this date.") : isFuture ? (locale === "ko" ? "이 날짜에는 아직 계획된 작업이 없습니다." : "Nothing is planned for this date yet.") : (locale === "ko" ? "오늘 작업이 아직 없습니다." : "There are no tasks for today yet.")}</p><Link className="button secondary" href={isFuture ? `/upcoming?date=${selectedKey}` : "/inbox"}>{locale === "ko" ? "작업 계획하기" : "Plan tasks"}</Link></div>}
+          {planning && isToday && view.items.length > 0 && <form action={startWorkday}><input type="hidden" name="workdayId" value={view.id}/><button className="button full">{locale === "ko" ? "작업일 시작" : "Start workday"}</button></form>}
         </section>
       </div>
       <aside className="hubSidebar"><WorkdayCalendar monthKey={monthKey} days={days} locale={locale}/>{!isToday && <Link className="button secondary fullWidth" href="/">{locale === "ko" ? "오늘로 돌아가기" : "Back to today"}</Link>}<div className="calendarLegend"><span><i className="todayDot"/> {locale === "ko" ? "오늘" : "Today"}</span><span><i className="recordDot"/> {locale === "ko" ? "기록 있음" : "Recorded"}</span></div></aside>

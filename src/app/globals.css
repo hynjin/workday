@@ -76,4 +76,42 @@ kbd { display:inline-grid; min-width:24px; min-height:22px; place-items:center; 
 @media (max-width:900px) { .growthMetrics { grid-template-columns:1fr 1fr; }.growthGrid { grid-template-columns:1fr; } }
 @media (max-width:760px) { .growthHero { grid-template-columns:1fr; gap:24px; }.trendChart { gap:4px; }.goalCard form { align-items:stretch; flex-direction:column; }.goalCard form .button { width:100%; } }
 @media (max-width:520px) { .growthMetrics { grid-template-columns:1fr; }.growthHero>div:first-child>strong { font-size:2.8rem; } }
+
+/* Unified planning, drag and modal controls */
+.summaryStats.three { grid-template-columns:repeat(3,1fr); }
+.quickAddBackdrop { position:fixed; inset:0; z-index:0; border:0; background:rgba(25,32,26,.18); cursor:default; }
+.quickAddForm { position:relative; z-index:1; }
+.quickAddHeader { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; }
+.iconButton { display:grid; width:32px; height:32px; flex:0 0 auto; place-items:center; border:0; border-radius:9px; background:#f1f2ed; color:var(--ink); font-size:1.25rem; cursor:pointer; }
+.recurrenceGrid label,.taskPlanningBody,.recurrenceForm { min-width:0; }
+.recurrenceGrid input,.recurrenceGrid select { width:100%; min-width:0; }
+.taskCardHeading { display:flex; align-items:center; gap:7px; }
+.taskCardHeading .editableText { min-width:0; flex:1; }
+.dragHandle { display:grid; width:26px; height:30px; flex:0 0 auto; place-items:center; border-radius:7px; color:#8a8f86; cursor:grab; user-select:none; touch-action:none; }
+.dragHandle:hover { background:var(--accent-soft); color:var(--accent); }
+.moreMenu { position:relative; }
+.moreMenu>summary { display:grid; width:30px; height:30px; place-items:center; list-style:none; border-radius:8px; color:var(--muted); cursor:pointer; }
+.moreMenu>summary::-webkit-details-marker { display:none; }
+.moreMenu>div { position:absolute; right:0; z-index:8; display:grid; min-width:150px; padding:7px; border:1px solid var(--line); border-radius:10px; background:white; box-shadow:0 10px 30px rgba(25,32,26,.15); }
+.moreMenu>div .textButton { width:100%; padding:8px; text-align:left; white-space:nowrap; }
+.taskSchedulePicker { display:flex; align-items:center; flex-wrap:wrap; gap:5px; margin:8px 0; }
+.taskSchedulePicker input { width:auto; max-width:150px; padding:7px; font-size:.75rem; }
+.workdayDragHandle { margin-left:-6px; }
+.workItem .moreMenu>div { top:34px; }
+
+@media (max-width:760px) {
+  .summaryStats.three { grid-template-columns:1fr; }
+  .taskPlanningBody { padding:12px; overflow:hidden; }
+  .recurrenceGrid { grid-template-columns:1fr 1fr; }
+  .estimateForm { align-items:stretch; flex-direction:column; }
+  .estimateForm button { align-self:flex-start; }
+  .projectTaskBoard.list .projectColumnTasks { grid-template-columns:1fr; }
+  .taskSchedulePicker { width:100%; }
+  .taskSchedulePicker input { min-width:0; max-width:none; flex:1; }
+  .moreMenu>div { position:fixed; right:16px; left:16px; bottom:76px; top:auto; }
+}
+
+@media (max-width:480px) {
+  .recurrenceGrid { grid-template-columns:1fr; }
+}
 @media (max-width:760px) { .subtaskRow { align-items:flex-start; flex-direction:column; }.subtaskActions { align-self:flex-end; }.shortcutHelpButton { right:16px; bottom:76px; } }
