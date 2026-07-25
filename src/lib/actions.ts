@@ -492,6 +492,7 @@ export async function reorderWorkdayItem(itemIdInput: string, targetIndexInput: 
     if (item.workday.workdayDate.toISOString().slice(0, 10) !== getWorkdayDate()) {
       throw new Error("오늘 작업만 순서를 변경할 수 있습니다.");
     }
+    if (item.workday.status === "completed") throw new Error("완료된 작업일은 순서를 변경할 수 없습니다.");
     const ids = (await tx.workdayItem.findMany({
       where: { workdayId: item.workdayId },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
