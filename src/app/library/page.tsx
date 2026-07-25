@@ -1,49 +1,5 @@
-import Link from "next/link";
-import { AppNav } from "@/components/app-nav";
-import { ConfirmSubmit, EditableText } from "@/components/editable-text";
-import { addWorkdayItem, archiveCategory, archiveTask, createCategory, createTask, deleteCategory, deleteTask, removeWorkdayItem, restoreCategory, restoreTask, updateCategory, updateTask } from "@/lib/actions";
-import { getOrCreateWorkdayForDate, getWorkdayView } from "@/lib/data";
-import { copy, getLocale } from "@/lib/i18n";
-import { prisma } from "@/lib/prisma";
-import { dateKeyToDate, formatWorkdayDate, getWorkdayDate, nextDate } from "@/lib/workday-date";
+import { redirect } from "next/navigation";
 
-export const dynamic = "force-dynamic";
-
-export default async function LibraryPage({ searchParams }: { searchParams: Promise<{ date?: string; category?: string }> }) {
-  const [{ date, category: categoryId }, locale] = await Promise.all([searchParams, getLocale()]);
-  const t = copy[locale].library;
-  const todayKey = getWorkdayDate();
-  const selectedKey = date && /^\d{4}-\d{2}-\d{2}$/.test(date) && date >= todayKey ? date : todayKey;
-  const tomorrowKey = nextDate(dateKeyToDate(todayKey)).toISOString().slice(0, 10);
-  const workday = await getOrCreateWorkdayForDate(selectedKey);
-  const [view, activeCategories, archivedCategories, archivedTasks] = await Promise.all([
-    getWorkdayView(workday.id),
-    prisma.taskCategory.findMany({ where: { status: "active" }, orderBy: { createdAt: "asc" }, include: { tasks: { where: { status: "active" }, orderBy: { createdAt: "asc" } } } }),
-    prisma.taskCategory.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { _count: { select: { tasks: true } } } }),
-    prisma.task.findMany({ where: { status: "archived", category: { status: "active" } }, orderBy: { archivedAt: "desc" }, include: { category: true } }),
-  ]);
-  const selectedCategory = activeCategories.find(category => category.id === categoryId) ?? activeCategories[0] ?? null;
-  const isInbox = selectedCategory?.id === "legacy-uncategorized";
-  const categoryLabel = (id: string, title: string) => id === "legacy-uncategorized" ? (locale === "ko" ? "받은편지함" : "Inbox") : title;
-  const isEditableWorkday = view.status !== "completed";
-  const dateQuery = selectedKey === todayKey ? "" : `date=${selectedKey}`;
-  const categoryHref = (id: string) => `/library?${[dateQuery, `category=${id}`].filter(Boolean).join("&")}`;
-  const selectedLabel = selectedKey === todayKey ? t.today : formatWorkdayDate(view.workdayDate, locale);
-  const workdayStatusLabel = view.status === "completed" ? (locale === "ko" ? "종료됨" : "Closed") : null;
-  return <main className="shell">
-    <AppNav />
-    <header className="pageHeader"><div><p className="eyebrow">{t.eyebrow}</p><h1>{t.title}</h1><p className="lede">{t.intro}</p></div><span className="status">{selectedLabel} {view.items.length} {t.count}{workdayStatusLabel ? ` · ${workdayStatusLabel}` : ""}</span></header>
-    <section className="panel datePlanner"><div><strong>{t.planDate}</strong><p>{t.planHelp}</p></div><form><input type="date" name="date" min={todayKey} defaultValue={selectedKey}/>{selectedCategory && <input type="hidden" name="category" value={selectedCategory.id}/>}<button className="button secondary">{t.viewDate}</button></form><div className="dateQuick"><Link href={selectedCategory ? `/library?category=${selectedCategory.id}` : "/library"}>{t.today}</Link><Link href={`/library?date=${tomorrowKey}${selectedCategory ? `&category=${selectedCategory.id}` : ""}`}>{t.tomorrow}</Link></div></section>
-    <div className="categoryWorkspace">
-      <aside className="panel categoryRail"><div className="railHeading"><h2>{t.categories}</h2><p>{t.categoryHelp}</p></div><nav>{activeCategories.map(category => <Link className={`${category.id === selectedCategory?.id ? "active" : ""} ${category.id === "legacy-uncategorized" ? "inboxLink" : ""}`} href={categoryHref(category.id)} key={category.id}><span>{categoryLabel(category.id, category.title)}</span><small>{category.tasks.length}</small></Link>)}</nav><details className="categoryCreate"><summary>{locale === "ko" ? "새 카테고리" : "New category"}</summary><form action={createCategory}>{selectedKey !== todayKey && <input type="hidden" name="date" value={selectedKey}/>}<label className="sr-only" htmlFor="category-title">{t.newCategory}</label><input id="category-title" name="title" placeholder={t.newCategory} required maxLength={120}/><button className="button full">{t.addCategory}</button></form></details></aside>
-      <section className="panel taskWorkspace">{selectedCategory ? <>
-        <header className="taskWorkspaceHeader"><div><p className="workspaceLabel">{t.tasks}</p>{isInbox ? <h2 className="fixedCategoryName">{categoryLabel(selectedCategory.id, selectedCategory.title)}</h2> : <EditableText action={updateCategory} idName="categoryId" id={selectedCategory.id} value={selectedCategory.title} label={t.edit} className="categoryName"/>}<p>{isInbox ? (locale === "ko" ? "카테고리가 필요 없는 반복 작업을 바로 저장하는 기본 목록입니다." : "The default home for reusable tasks that need no category.") : t.taskHelp}</p></div>{!isInbox && <div className="libraryActions"><form action={archiveCategory}><input type="hidden" name="categoryId" value={selectedCategory.id}/><button className="textButton muted">{t.archive}</button></form><ConfirmSubmit action={deleteCategory} fields={{ categoryId: selectedCategory.id }} message={locale === "ko" ? `‘${selectedCategory.title}’ 카테고리와 그 안의 작업을 삭제할까요?` : `Delete “${selectedCategory.title}” and all tasks inside it?`}><button className="textButton dangerText">{t.remove}</button></ConfirmSubmit></div>}</header>
-        <div className="taskRows">{selectedCategory.tasks.map(task => <div className="libraryTask" key={task.id}><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={t.edit}/><div className="libraryActions">{isEditableWorkday && <form action={addWorkdayItem}><input type="hidden" name="workdayId" value={view.id}/><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="title" value={task.title}/><button className="textButton accent">{selectedKey === todayKey ? t.addToday : t.addDate}</button></form>}<form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">{t.archive}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요? 작업일 기록의 이름은 유지됩니다.` : `Delete “${task.title}”? Its name remains in workday history.`}><button className="textButton dangerText">{t.remove}</button></ConfirmSubmit></div></div>)}</div>
-        {!selectedCategory.tasks.length && <p className="empty">{locale === "ko" ? "아직 작업이 없습니다. 아래에서 이 카테고리의 첫 작업을 추가하세요." : "No tasks yet. Add the first task in this category below."}</p>}
-        <details className="addDetail"><summary>{t.addTask}</summary><form action={createTask} className="rowForm detailCreate"><input type="hidden" name="categoryId" value={selectedCategory.id}/><input name="title" aria-label={t.taskPlaceholder} placeholder={t.taskPlaceholder} required maxLength={120}/><button className="button secondary">{t.add}</button></form></details>
-      </> : <p className="empty">{t.noCategory}</p>}</section>
-      <aside className="panel todaySidebar"><div className="sectionTitle"><h2>{selectedLabel} {t.selectedWork}</h2><span>{workdayStatusLabel ?? view.items.length}</span></div>{isEditableWorkday ? <form action={addWorkdayItem} className="rowForm quickToday"><input type="hidden" name="workdayId" value={view.id}/><input name="title" aria-label={t.oneOff} placeholder={t.oneOff} required/><button className="button">{t.add}</button></form> : <p className="readonlyNotice">{locale === "ko" ? "종료된 작업일은 기록을 보존하기 위해 수정할 수 없습니다." : "Closed workdays are read-only so their records stay intact."}</p>}{view.items.map(item => <div className="todayItem todayManaged" key={item.id}><div><span>{item.title}</span><small>{item.categoryTitle ?? t.direct} · {item.status === "completed" ? t.completed : t.planned}</small></div>{isEditableWorkday && <ConfirmSubmit action={removeWorkdayItem} fields={{ itemId: item.id }} message={locale === "ko" ? `이 날짜에서 ‘${item.title}’을 삭제할까요? 집중 기록도 함께 삭제됩니다.` : `Remove “${item.title}” from this date? Its focus records will also be deleted.`}><button className="textButton dangerText">{t.takeOut}</button></ConfirmSubmit>}</div>)}{!view.items.length && <p className="empty">{t.emptyDay}</p>}</aside>
-    </div>
-    <details className="panel archiveBox"><summary>{t.archiveBox} ({archivedCategories.length + archivedTasks.length})</summary><div className="archiveGroups"><section><h3>{t.archivedCategories}</h3>{archivedCategories.map(category => <div className="archiveRow" key={category.id}><span>{category.title}<small>{category._count.tasks} {t.count}</small></span><div className="libraryActions"><form action={restoreCategory}><input type="hidden" name="categoryId" value={category.id}/><button className="textButton accent">{t.restore}</button></form><ConfirmSubmit action={deleteCategory} fields={{ categoryId: category.id }} message={locale === "ko" ? `‘${category.title}’ 카테고리를 영구 삭제할까요?` : `Permanently delete “${category.title}”?`}><button className="textButton dangerText">{t.remove}</button></ConfirmSubmit></div></div>)}{!archivedCategories.length && <p className="empty">{t.emptyArchive}</p>}</section><section><h3>{t.archivedTasks}</h3>{archivedTasks.map(task => <div className="archiveRow" key={task.id}><span>{task.title}<small>{task.category.title}</small></span><div className="libraryActions"><form action={restoreTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton accent">{t.restore}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 영구 삭제할까요?` : `Permanently delete “${task.title}”?`}><button className="textButton dangerText">{t.remove}</button></ConfirmSubmit></div></div>)}{!archivedTasks.length && <p className="empty">{t.emptyArchive}</p>}</section></div></details>
-  </main>;
+export default function LibraryRedirect() {
+  redirect("/projects");
 }

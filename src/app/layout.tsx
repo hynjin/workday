@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n";
+import { QuickAdd } from "@/components/quick-add";
+import { prisma } from "@/lib/prisma";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -11,5 +13,6 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
-  return <html lang={locale}><body>{children}</body></html>;
+  const projects = await prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } });
+  return <html lang={locale}><body>{children}<QuickAdd projects={projects} locale={locale}/></body></html>;
 }

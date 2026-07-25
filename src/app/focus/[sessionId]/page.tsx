@@ -11,5 +11,5 @@ export default async function FocusPage({ params }: { params: Promise<{ sessionI
   if (!session) notFound();
   if (session.endedAt) redirect("/");
   const previousSeconds = session.workdayItem.focusSessions.filter(s => s.id !== session.id).reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
-  return <FocusTimer locale={locale} sessionId={session.id} title={session.workdayItem.title} startedAt={session.startedAt.toISOString()} previousSeconds={previousSeconds}/>;
+  return <FocusTimer locale={locale} sessionId={session.id} title={session.workdayItem.titleSnapshot} startedAt={session.startedAt.toISOString()} previousSeconds={previousSeconds}/>;
 }

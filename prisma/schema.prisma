@@ -24,28 +24,55 @@ enum WorkdayItemStatus {
   completed
 }
 
-model Task {
-  id         String        @id @default(cuid())
-  categoryId String
-  title      String
-  status     TaskStatus    @default(active)
-  createdAt  DateTime      @default(now())
-  updatedAt  DateTime      @updatedAt
-  archivedAt DateTime?
-  category   TaskCategory  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
-  items      WorkdayItem[]
-
-  @@index([categoryId, status])
+enum ProjectViewMode {
+  list
+  board
 }
 
-model TaskCategory {
+model Task {
+  id               String        @id @default(cuid())
+  projectId        String?
+  sectionId        String?
+  title            String
+  status           TaskStatus    @default(active)
+  reusable         Boolean       @default(true)
+  estimatedMinutes Int?
+  sortOrder        Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  archivedAt       DateTime?
+  project          Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  section          Section?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
+  items            WorkdayItem[]
+
+  @@index([projectId, status])
+  @@index([sectionId, sortOrder])
+}
+
+model Project {
   id         String        @id @default(cuid())
   title      String
   status     TaskStatus    @default(active)
+  viewMode   ProjectViewMode @default(list)
+  sortOrder  Int           @default(0)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
   archivedAt DateTime?
   tasks      Task[]
+  sections   Section[]
+}
+
+model Section {
+  id        String   @id @default(cuid())
+  projectId String
+  title     String
+  sortOrder Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  @@index([projectId, sortOrder])
 }
 
 model Workday {
@@ -63,8 +90,11 @@ model WorkdayItem {
   id                String            @id @default(cuid())
   workdayId         String
   taskId            String?
-  title             String
+  titleSnapshot     String
+  legacyTitle       String            @map("title")
   status            WorkdayItemStatus @default(planned)
+  isKeyTask         Boolean           @default(false)
+  sortOrder         Int               @default(0)
   carriedFromItemId String?
   createdAt         DateTime          @default(now())
   completedAt       DateTime?
@@ -77,6 +107,9 @@ model WorkdayItem {
   @@unique([workdayId, carriedFromItemId])
   @@unique([workdayId, taskId])
   @@index([workdayId, status])
+  @@index([workdayId, sortOrder])
+  @@index([taskId])
+  @@index([carriedFromItemId])
 }
 
 model FocusSession {

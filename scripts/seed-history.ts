@@ -19,7 +19,7 @@ async function main() {
     await prisma.workday.create({ data: {
       workdayDate: date, status: "completed", startedAt, endedAt,
       items: { create: templates[created].map((item, index) => ({
-        title: item.title, status: item.completed ? "completed" : "planned",
+        titleSnapshot: item.title, legacyTitle: item.title, status: item.completed ? "completed" : "planned",
         completedAt: item.completed ? new Date(startedAt.getTime() + (index + 1) * 60 * 60 * 1000) : null,
         focusSessions: { create: { startedAt: new Date(startedAt.getTime() + index * 2 * 60 * 60 * 1000), endedAt: new Date(startedAt.getTime() + index * 2 * 60 * 60 * 1000 + item.seconds * 1000), durationSeconds: item.seconds } },
       })) },
