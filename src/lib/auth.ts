@@ -1,10 +1,10 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://rjhblcdwsfuwlgigpqod.supabase.co";
-const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "sb_publishable_GhDTc-fPkdEDxqtWezpwrA_kKyS74e8";
-const ACCESS_COOKIE = "workday-access-token";
-const REFRESH_COOKIE = "workday-refresh-token";
+export const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL ?? "https://rjhblcdwsfuwlgigpqod.supabase.co";
+export const SUPABASE_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? "sb_publishable_GhDTc-fPkdEDxqtWezpwrA_kKyS74e8";
+export const ACCESS_COOKIE = "workday-access-token";
+export const REFRESH_COOKIE = "workday-refresh-token";
 
 type AuthUser = { id: string; email?: string };
 export type AuthSession = { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
@@ -30,6 +30,21 @@ function authHeaders(accessToken?: string) {
     "Content-Type": "application/json",
     ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
   };
+}
+
+export function authCookieOptions(maxAge: number) {
+  return { httpOnly: true, sameSite: "lax" as const, secure: process.env.NODE_ENV === "production", path: "/", maxAge };
+}
+
+export async function refreshAuthSession(refreshToken: string) {
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/token?grant_type=refresh_token`, {
+    method: "POST",
+    headers: authHeaders(),
+    body: JSON.stringify({ refresh_token: refreshToken }),
+    cache: "no-store",
+  });
+  if (!response.ok) throw await authRequestError(response);
+  return response.json() as Promise<AuthSession>;
 }
 
 export async function getOptionalUser(): Promise<AuthUser | null> {
@@ -91,9 +106,8 @@ async function authRequestError(response: Response) {
 
 export async function saveAuthSession(session: AuthSession) {
   const store = await cookies();
-  const secure = process.env.NODE_ENV === "production";
-  store.set(ACCESS_COOKIE, session.access_token, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: session.expires_in });
-  store.set(REFRESH_COOKIE, session.refresh_token, { httpOnly: true, sameSite: "lax", secure, path: "/", maxAge: 60 * 60 * 24 * 30 });
+  store.set(ACCESS_COOKIE, session.access_token, authCookieOptions(session.expires_in));
+  store.set(REFRESH_COOKIE, session.refresh_token, authCookieOptions(60 * 60 * 24 * 30));
 }
 
 export async function clearAuthSession() {

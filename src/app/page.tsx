@@ -7,6 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n";
 import { dateKeyToDate, formatDuration, formatWorkdayDate, getWorkdayDate } from "@/lib/workday-date";
 import { ownedWorkdayWhere } from "@/lib/auth";
+import { TodayTaskAdder } from "@/components/today-task-adder";
+import { undoRemoveWorkdayItem } from "@/lib/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +16,7 @@ function validDate(value?: string) {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
 }
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string; month?: string }> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string; month?: string; removed?: string }> }) {
   const [params, locale] = await Promise.all([searchParams, getLocale()]);
   const todayKey = getWorkdayDate();
   const current = await getOrCreateCurrentWorkday();
@@ -59,6 +61,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const actionable = isToday && view.status !== "completed";
   const planning = isFuture && view.status !== "completed";
   const statusLabel = view.status === "completed" ? (locale === "ko" ? "기록" : "History") : view.status === "active" ? (locale === "ko" ? "진행 중" : "Active") : (locale === "ko" ? "준비 중" : "Planning");
+  const todayCandidates = isToday ? await prisma.task.findMany({
+    where: { status: "active", OR: [{ items: { none: { workdayId: view.id } } }, { items: { some: { workdayId: view.id, dismissedAt: { not: null } } } }] },
+    orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
+    take: 80,
+    include: { project: { select: { title: true } }, area: { select: { title: true } }, parentTask: { select: { title: true } } },
+  }) : [];
 
   return <main className="shell">
     <AppNav />
@@ -66,10 +74,12 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
 
     <div className="workdayHub">
       <div className="workdayMain">
+        {params.removed && <aside className="actionNotice" role="status"><span>{locale === "ko" ? "이 날짜의 작업에서 제거했습니다. 작업 자체와 기록은 유지됩니다." : "Removed from this date. The task and its history are preserved."}</span><form action={undoRemoveWorkdayItem}><input type="hidden" name="itemId" value={params.removed}/><button className="textButton accent">{locale === "ko" ? "실행 취소" : "Undo"}</button></form></aside>}
         <section className="summaryStats three"><div><span>{locale === "ko" ? "총 집중" : "Total focus"}</span><strong>{formatDuration(view.totalSeconds, false, locale)}</strong></div><div><span>{locale === "ko" ? "집중 세션" : "Sessions"}</span><strong>{view.totalSessions}{locale === "ko" ? "회" : ""}</strong></div><div><span>{locale === "ko" ? "완료" : "Completed"}</span><strong>{done.length}</strong></div></section>
         <section className="panel taskPanel">
           <div className="sectionTitle"><h2>{locale === "ko" ? "이 날짜의 작업" : "Scheduled tasks"}</h2><Link className="quietLink" href="/tasks">{locale === "ko" ? "작업에서 계획하기" : "Plan from Tasks"} <span aria-hidden="true">→</span></Link></div>
           <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} historical={isPast} selectedDate={selectedKey}/>
+          {isToday && <TodayTaskAdder workdayId={view.id} locale={locale} candidates={todayCandidates.map(task => ({ id: task.id, title: task.title, location: task.project?.title ?? task.area?.title ?? task.parentTask?.title ?? "Inbox" }))}/>}
           {!view.items.length && <div className="emptyState"><p>{isPast ? (locale === "ko" ? "이 날짜에는 기록된 작업이 없습니다." : "No work was recorded on this date.") : isFuture ? (locale === "ko" ? "이 날짜에는 아직 계획된 작업이 없습니다." : "Nothing is planned for this date yet.") : (locale === "ko" ? "오늘 작업이 아직 없습니다." : "There are no tasks for today yet.")}</p><Link className="button secondary" href="/tasks">{locale === "ko" ? "작업 계획하기" : "Plan tasks"}</Link></div>}
         </section>
       </div>

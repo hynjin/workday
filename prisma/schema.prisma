@@ -180,6 +180,8 @@ model WorkdayItem {
   status            WorkdayItemStatus @default(planned)
   isKeyTask         Boolean           @default(false)
   sortOrder         Int               @default(0)
+  dailyGoalMinutes  Int?
+  dismissedAt       DateTime?
   carriedFromItemId String?
   recurrenceRuleId  String?
   createdAt         DateTime          @default(now())
@@ -209,6 +211,9 @@ model FocusSession {
   startedAt       DateTime    @default(now())
   endedAt         DateTime?
   durationSeconds Int?
+  taskTitleSnapshot String?
+  projectTitleSnapshot String?
+  areaTitleSnapshot String?
   createdAt       DateTime    @default(now())
   workdayItem     WorkdayItem @relation(fields: [workdayItemId], references: [id], onDelete: Cascade)
 

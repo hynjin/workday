@@ -5,7 +5,7 @@ import { ProjectTaskBoard } from "@/components/project-task-board";
 import { ProjectRailLinks } from "@/components/project-rail-links";
 import {
   archiveProject, completeProject, createProject, createSection, createTask, deleteProject, deleteTask,
-  reopenProject, restoreProject, restoreTask, setProjectViewMode, updateProject,
+  reopenProject, restoreProject, restoreTask, setProjectViewMode, undoMoveTaskToInbox, updateProject,
 } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -14,7 +14,7 @@ import { dateKeyToDate, formatDuration, getWorkdayDate } from "@/lib/workday-dat
 
 export const dynamic = "force-dynamic";
 
-export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ project?: string; sort?: string }> }) {
+export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ project?: string; sort?: string; moved?: string; fromProject?: string }> }) {
   const [params, locale] = await Promise.all([searchParams, getLocale()]);
   const today = getWorkdayDate();
   const sort = parseTaskSort(params.sort);
@@ -94,7 +94,9 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         <ProjectRailLinks projects={projects.map(project => ({ id: project.id, title: project.title, taskCount: project.tasks.length }))} selectedId={selected?.id}/>
         <details className="categoryCreate"><summary>{locale === "ko" ? "새 프로젝트" : "New project"}</summary><form action={createProject}><input name="title" placeholder={locale === "ko" ? "프로젝트 이름" : "Project name"} aria-label={locale === "ko" ? "프로젝트 이름" : "Project name"} required maxLength={120}/><select name="areaId" defaultValue=""><option value="">{locale === "ko" ? "Area 없음" : "No Area"}</option>{areas.map(area => <option value={area.id} key={area.id}>{area.title}</option>)}</select><button className="button full">{locale === "ko" ? "프로젝트 만들기" : "Create project"}</button></form></details>
       </aside>
-      <section className="projectWorkspaceMain">{selected ? <>
+      <section className="projectWorkspaceMain">
+        {params.moved && params.fromProject === selected?.id && <aside className="actionNotice" role="status"><span>{locale === "ko" ? "작업을 Inbox로 이동했습니다." : "Task moved to Inbox."}</span><form action={undoMoveTaskToInbox}><input type="hidden" name="taskId" value={params.moved}/><input type="hidden" name="projectId" value={params.fromProject}/><button className="textButton accent">{locale === "ko" ? "실행 취소" : "Undo"}</button></form></aside>}
+        {selected ? <>
         <div className="panel projectTasks">
           <header className="taskWorkspaceHeader"><div><p className="workspaceLabel">{locale === "ko" ? "프로젝트 컨테이너 · Task와 Subtask를 날짜에 실행" : "PROJECT CONTAINER · Schedule tasks and subtasks"}</p><EditableText action={updateProject} idName="projectId" id={selected.id} value={selected.title} label={locale === "ko" ? "프로젝트 이름 수정" : "Rename project"} className="categoryName"/>{selected.area && <Link className="locationBadge area" href={`/areas?area=${selected.area.id}`}>{selected.area.title}</Link>}<p>{locale === "ko" ? "프로젝트 자체가 아니라 Task와 선택적인 Subtask가 오늘 또는 다른 날짜의 실행 단위가 됩니다." : "Tasks and optional subtasks—not the project itself—are the units you schedule and execute."}</p></div><div className="libraryActions"><form action={completeProject}><input type="hidden" name="projectId" value={selected.id}/><button className="textButton accent">{locale === "ko" ? "프로젝트 완료" : "Complete project"}</button></form><form action={archiveProject}><input type="hidden" name="projectId" value={selected.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form><ConfirmSubmit action={deleteProject} fields={{ projectId: selected.id }} message={locale === "ko" ? `‘${selected.title}’ 프로젝트를 삭제할까요? 작업은 Inbox로 이동합니다.` : `Delete “${selected.title}”? Its tasks will move to Inbox.`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></header>
           <div className="projectToolbar">

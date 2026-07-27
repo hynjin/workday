@@ -285,6 +285,43 @@ export async function moveTaskToProject(form: FormData) {
   refreshWorkspace();
 }
 
+export async function moveTaskToInbox(form: FormData) {
+  const taskId = idFrom(form, "taskId");
+  const returnProjectId = idFrom(form, "returnProjectId");
+  await prisma.$transaction(async (tx) => {
+    const task = await tx.task.findFirstOrThrow({
+      where: { id: taskId, projectId: returnProjectId, parentTaskId: null, status: "active" },
+    });
+    await tx.task.update({
+      where: { id: task.id },
+      data: { projectId: null, areaId: null, sectionId: null },
+    });
+    await tx.task.updateMany({
+      where: { parentTaskId: task.id },
+      data: { projectId: null, areaId: null, sectionId: null },
+    });
+    const verified = await tx.task.findUniqueOrThrow({ where: { id: task.id } });
+    if (verified.projectId || verified.areaId || verified.sectionId) throw new Error("Inbox 이동을 확인하지 못했습니다.");
+  });
+  refreshWorkspace();
+  redirect(`/projects?project=${encodeURIComponent(returnProjectId)}&moved=${encodeURIComponent(taskId)}&fromProject=${encodeURIComponent(returnProjectId)}`);
+}
+
+export async function undoMoveTaskToInbox(form: FormData) {
+  const taskId = idFrom(form, "taskId");
+  const projectId = idFrom(form, "projectId");
+  await prisma.$transaction(async (tx) => {
+    await tx.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
+    const task = await tx.task.findFirstOrThrow({
+      where: { id: taskId, projectId: null, areaId: null, parentTaskId: null, status: "active" },
+    });
+    await tx.task.update({ where: { id: task.id }, data: { projectId } });
+    await tx.task.updateMany({ where: { parentTaskId: task.id }, data: { projectId } });
+  });
+  refreshWorkspace();
+  redirect(`/projects?project=${encodeURIComponent(projectId)}`);
+}
+
 export async function moveTaskToArea(form: FormData) {
   const taskId = idFrom(form, "taskId"), areaId = optionalIdFrom(form, "areaId");
   if (areaId) await prisma.area.findFirstOrThrow({ where: { id: areaId, status: "active" } });
@@ -506,18 +543,94 @@ export async function addWorkdayItem(form: FormData) {
     const existing = taskId
       ? await tx.workdayItem.findFirst({ where: { workdayId, taskId } })
       : await tx.workdayItem.findFirst({ where: { workdayId, taskId: null, titleSnapshot: { equals: title, mode: "insensitive" } } });
-    if (!existing) await tx.workdayItem.create({ data: { workdayId, taskId, titleSnapshot: title, legacyTitle: title } });
+    if (existing) await tx.workdayItem.update({ where: { id: existing.id }, data: { dismissedAt: null } });
+    else await tx.workdayItem.create({ data: { workdayId, taskId, titleSnapshot: title, legacyTitle: title } });
   });
+  refreshWorkspace();
+}
+
+export async function createTodayTask(form: FormData) {
+  const title = titleFrom(form);
+  const dailyGoalMinutes = estimatedMinutesFrom(form);
+  const workdayId = idFrom(form, "workdayId");
+  await prisma.$transaction(async (tx) => {
+    const workday = await tx.workday.findUniqueOrThrow({ where: { id: workdayId } });
+    if (workday.workdayDate.toISOString().slice(0, 10) !== getWorkdayDate()) throw new Error("오늘 작업일에만 바로 추가할 수 있습니다.");
+    let task = await tx.task.findFirst({
+      where: { projectId: null, areaId: null, parentTaskId: null, title: { equals: title, mode: "insensitive" } },
+    });
+    if (!task) task = await tx.task.create({ data: { title } });
+    const existing = await tx.workdayItem.findFirst({ where: { workdayId, taskId: task.id } });
+    if (existing) {
+      await tx.workdayItem.update({ where: { id: existing.id }, data: { dismissedAt: null, dailyGoalMinutes } });
+    } else {
+      await tx.workdayItem.create({ data: { workdayId, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title, dailyGoalMinutes } });
+    }
+  });
+  refreshWorkspace();
+}
+
+export async function updateDailyGoal(form: FormData) {
+  const itemId = idFrom(form, "itemId");
+  const dailyGoalMinutes = estimatedMinutesFrom(form);
+  await prisma.workdayItem.update({ where: { id: itemId }, data: { dailyGoalMinutes } });
   refreshWorkspace();
 }
 
 export async function removeWorkdayItem(form: FormData) {
   const id = idFrom(form, "itemId");
-  await prisma.$transaction(async (tx) => {
+  const dateKey = await prisma.$transaction(async (tx) => {
     const item = await tx.workdayItem.findUniqueOrThrow({ where: { id }, include: { workday: true } });
     if (item.workday.status === "completed") throw new Error("지난 작업일의 기록은 삭제할 수 없습니다.");
-    if (await tx.focusSession.findFirst({ where: { workdayItemId: id, endedAt: null } })) throw new Error("집중 중인 작업은 세션 종료 후 삭제할 수 있습니다.");
-    await tx.workdayItem.delete({ where: { id } });
+    const sessions = await tx.focusSession.findMany({ where: { workdayItemId: id }, select: { endedAt: true, durationSeconds: true } });
+    if (sessions.some(session => !session.endedAt)) throw new Error("집중 중인 작업은 세션 종료 후 오늘에서 뺄 수 있습니다.");
+    await tx.workdayItem.update({ where: { id }, data: { dismissedAt: new Date() } });
+    return item.workday.workdayDate.toISOString().slice(0, 10);
+  });
+  refreshWorkspace();
+  const dateParam = dateKey === getWorkdayDate() ? "" : `date=${encodeURIComponent(dateKey)}&`;
+  redirect(`/?${dateParam}removed=${encodeURIComponent(id)}`);
+}
+
+export async function undoRemoveWorkdayItem(form: FormData) {
+  const itemId = idFrom(form, "itemId");
+  const item = await prisma.workdayItem.update({
+    where: { id: itemId, dismissedAt: { not: null } },
+    data: { dismissedAt: null },
+    include: { workday: { select: { workdayDate: true } } },
+  });
+  refreshWorkspace();
+  const dateKey = item.workday.workdayDate.toISOString().slice(0, 10);
+  redirect(dateKey === getWorkdayDate() ? "/" : `/?date=${encodeURIComponent(dateKey)}`);
+}
+
+export async function deleteTaskFromToday(form: FormData) {
+  const itemId = idFrom(form, "itemId");
+  await prisma.$transaction(async (tx) => {
+    const item = await tx.workdayItem.findUniqueOrThrow({
+      where: { id: itemId },
+      include: { focusSessions: true },
+    });
+    if (!item.taskId) {
+      if (item.status === "completed" || item.focusSessions.some(session => (session.durationSeconds ?? 0) > 0)) {
+        await tx.workdayItem.update({ where: { id: itemId }, data: { dismissedAt: new Date() } });
+      } else await tx.workdayItem.delete({ where: { id: itemId } });
+      return;
+    }
+    const hasHistory = await tx.workdayItem.findFirst({
+      where: {
+        taskId: item.taskId,
+        OR: [{ status: "completed" }, { focusSessions: { some: { durationSeconds: { gt: 0 } } } }],
+      },
+      select: { id: true },
+    });
+    if (hasHistory) {
+      await tx.task.update({ where: { id: item.taskId }, data: { status: "archived", archivedAt: new Date() } });
+      await tx.workdayItem.update({ where: { id: itemId }, data: { dismissedAt: new Date() } });
+    } else {
+      await tx.workdayItem.delete({ where: { id: itemId } });
+      await tx.task.delete({ where: { id: item.taskId } });
+    }
   });
   refreshWorkspace();
 }
@@ -619,14 +732,24 @@ export async function reorderWorkdayItem(itemIdInput: string, targetIndexInput: 
 export async function startFocus(form: FormData) {
   const itemId = idFrom(form, "itemId");
   const session = await prisma.$transaction(async (tx) => {
-    const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
+    const item = await tx.workdayItem.findUniqueOrThrow({
+      where: { id: itemId },
+      include: { workday: true, task: { include: { project: { include: { area: true } }, area: true } } },
+    });
     const itemDate = item.workday.workdayDate.toISOString().slice(0, 10);
     if (itemDate !== getWorkdayDate() || item.workday.status === "completed") {
       throw new Error("오늘 작업에서만 집중을 시작할 수 있습니다.");
     }
     if (item.status === "completed") throw new Error("완료 취소 후 집중을 시작해 주세요.");
     const active = await tx.focusSession.findFirst({ where: { endedAt: null } });
-    return active ?? tx.focusSession.create({ data: { workdayItemId: itemId } });
+    return active ?? tx.focusSession.create({
+      data: {
+        workdayItemId: itemId,
+        taskTitleSnapshot: item.titleSnapshot,
+        projectTitleSnapshot: item.task?.project?.title ?? null,
+        areaTitleSnapshot: item.task?.project?.area?.title ?? item.task?.area?.title ?? null,
+      },
+    });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
   redirect(`/focus/${session.id}`);
 }

@@ -1,108 +1,75 @@
 import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
-import { updateWeeklyFocusGoal } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
-import { dateKey, nextUtcDate, streaks, weekStart } from "@/lib/productivity";
+import { dateKey, nextUtcDate, weekStart } from "@/lib/productivity";
 import { dateKeyToDate, formatDuration, getWorkdayDate } from "@/lib/workday-date";
 
 export const dynamic = "force-dynamic";
 
-function validWeek(value: string | undefined, current: Date) {
-  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return current;
-  const selected = weekStart(dateKeyToDate(value));
-  return selected > current ? current : selected;
-}
+type Period = "week" | "month";
+function monthStart(date: Date) { return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1)); }
+function addMonths(date: Date, count: number) { return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + count, 1)); }
 
-export default async function GrowthPage({ searchParams }: { searchParams: Promise<{ week?: string }> }) {
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string; start?: string }> }) {
   const [locale, params] = await Promise.all([getLocale(), searchParams]);
-  const todayKey = getWorkdayDate();
-  const today = dateKeyToDate(todayKey);
-  const currentWeekStart = weekStart(today);
-  const selectedWeekStart = validWeek(params.week, currentWeekStart);
-  const selectedWeekEnd = nextUtcDate(selectedWeekStart, 7);
-  const isCurrentWeek = dateKey(selectedWeekStart) === dateKey(currentWeekStart);
+  const today = dateKeyToDate(getWorkdayDate());
+  const period: Period = params.period === "month" ? "month" : "week";
+  const currentStart = period === "week" ? weekStart(today) : monthStart(today);
+  const requested = params.start && /^\d{4}-\d{2}-\d{2}$/.test(params.start) ? dateKeyToDate(params.start) : currentStart;
+  const selectedStart = requested > currentStart ? currentStart : period === "week" ? weekStart(requested) : monthStart(requested);
+  const selectedEnd = period === "week" ? nextUtcDate(selectedStart, 7) : addMonths(selectedStart, 1);
+  const previousStart = period === "week" ? nextUtcDate(selectedStart, -7) : addMonths(selectedStart, -1);
+  const nextStart = selectedEnd;
+  const canNext = nextStart <= currentStart;
 
-  const [legacyGoal, savedGoal, weekWorkdays, activeWorkdays] = await Promise.all([
-    prisma.productivityGoal.upsert({ where: { id: "default" }, create: {}, update: {} }),
-    prisma.weeklyFocusGoal.findFirst({ where: { userId: null, weekStart: selectedWeekStart } }),
+  const [workdays, previousWorkdays] = await Promise.all([
     prisma.workday.findMany({
-      where: { workdayDate: { gte: selectedWeekStart, lt: selectedWeekEnd } },
+      where: { workdayDate: { gte: selectedStart, lt: selectedEnd } },
       include: { items: { include: { focusSessions: { where: { endedAt: { not: null } } } } } },
       orderBy: { workdayDate: "asc" },
     }),
     prisma.workday.findMany({
-      where: {
-        workdayDate: { lte: today },
-        OR: [
-          { startedAt: { not: null } },
-          { items: { some: { status: "completed" } } },
-          { items: { some: { focusSessions: { some: { endedAt: { not: null } } } } } },
-        ],
-      },
-      select: { workdayDate: true },
-      orderBy: { workdayDate: "asc" },
+      where: { workdayDate: { gte: previousStart, lt: selectedStart } },
+      include: { items: { include: { focusSessions: { where: { endedAt: { not: null } } } } } },
     }),
   ]);
-
-  const streak = streaks(activeWorkdays.map(day => dateKey(day.workdayDate)), todayKey);
-  const dayRows = Array.from({ length: 7 }, (_, index) => {
-    const day = nextUtcDate(selectedWeekStart, index);
-    const workday = weekWorkdays.find(value => dateKey(value.workdayDate) === dateKey(day));
-    const items = workday?.items ?? [];
-    return {
-      key: dateKey(day),
-      focusSeconds: items.reduce((total, item) => total + item.focusSessions.reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0), 0),
-      completed: items.filter(item => item.status === "completed").length,
-      planned: items.length,
-    };
+  const items = workdays.flatMap(day => day.items.map(item => ({ ...item, date: day.workdayDate })));
+  const sessions = items.flatMap(item => item.focusSessions.map(session => ({ ...session, item })));
+  const previousSeconds = previousWorkdays.flatMap(day => day.items).flatMap(item => item.focusSessions).reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
+  const focusSeconds = sessions.reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
+  const completedItems = items.filter(item => item.status === "completed");
+  const goalSeconds = items.reduce((sum, item) => sum + (item.dailyGoalMinutes ?? 0) * 60, 0);
+  const activeDays = new Set(sessions.map(session => dateKey(session.item.date))).size;
+  const change = previousSeconds ? Math.round((focusSeconds - previousSeconds) / previousSeconds * 100) : focusSeconds ? 100 : 0;
+  const dayCount = Math.round((selectedEnd.getTime() - selectedStart.getTime()) / 86_400_000);
+  const dayRows = Array.from({ length: dayCount }, (_, index) => {
+    const day = nextUtcDate(selectedStart, index);
+    return { key: dateKey(day), seconds: sessions.filter(session => dateKey(session.item.date) === dateKey(day)).reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0) };
   });
-  const focusSeconds = dayRows.reduce((sum, day) => sum + day.focusSeconds, 0);
-  const completed = dayRows.reduce((sum, day) => sum + day.completed, 0);
-  const planned = dayRows.reduce((sum, day) => sum + day.planned, 0);
-  const completionRate = planned ? Math.round(completed / planned * 100) : 0;
-  const goalMinutes = savedGoal?.weeklyFocusMinutes ?? legacyGoal.weeklyFocusMinutes;
-  const goalSeconds = goalMinutes * 60;
-  const goalPercent = Math.min(100, Math.round(focusSeconds / goalSeconds * 100));
-  const achieved = focusSeconds >= goalSeconds;
-  const maxDayFocus = Math.max(...dayRows.map(day => day.focusSeconds), 1);
-  const weekdays = locale === "ko" ? ["월", "화", "수", "목", "금", "토", "일"] : ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
-  const previous = dateKey(nextUtcDate(selectedWeekStart, -7));
-  const next = dateKey(nextUtcDate(selectedWeekStart, 7));
-  const rangeLabel = `${dateKey(selectedWeekStart)} – ${dateKey(nextUtcDate(selectedWeekStart, 6))}`;
+  const maxDay = Math.max(...dayRows.map(day => day.seconds), 1);
+  const group = (field: "areaTitleSnapshot" | "projectTitleSnapshot" | "taskTitleSnapshot", empty: string) => {
+    const values = new Map<string, number>();
+    sessions.forEach(session => values.set(session[field] ?? empty, (values.get(session[field] ?? empty) ?? 0) + (session.durationSeconds ?? 0)));
+    return [...values.entries()].sort((a, b) => b[1] - a[1]);
+  };
+  const areas = group("areaTitleSnapshot", locale === "ko" ? "Area 없음" : "No Area");
+  const projects = group("projectTitleSnapshot", locale === "ko" ? "프로젝트 없음" : "No Project");
+  const tasks = group("taskTitleSnapshot", locale === "ko" ? "하루 작업" : "One-off");
+  const rangeLabel = `${dateKey(selectedStart)} – ${dateKey(nextUtcDate(selectedEnd, -1))}`;
 
-  return <main className="shell">
-    <AppNav />
-    <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "꾸준함을 보는 기록" : "A RECORD OF CONSISTENCY"}</p><h1>{locale === "ko" ? "성장" : "Growth"}</h1><p className="lede">{locale === "ko" ? "주별 집중과 완료 흐름을 부담 없이 확인합니다." : "A calm week-by-week view of focus and completion."}</p></div></header>
-
-    <nav className="weekNavigator" aria-label={locale === "ko" ? "주간 이동" : "Week navigation"}>
-      <Link className="button secondary" href={`/growth?week=${previous}`}>{locale === "ko" ? "이전 주" : "Previous"}</Link>
-      <strong>{rangeLabel}</strong>
-      {isCurrentWeek ? <span className="button secondary disabled">{locale === "ko" ? "다음 주" : "Next"}</span> : <Link className="button secondary" href={`/growth?week=${next}`}>{locale === "ko" ? "다음 주" : "Next"}</Link>}
-    </nav>
-
-    <section className="growthMetrics">
-      <article className="panel"><span>{locale === "ko" ? "선택한 주 집중" : "Focus this week"}</span><strong>{formatDuration(focusSeconds, false, locale)}</strong><small>{goalPercent}% {locale === "ko" ? "목표 달성" : "of goal"}</small></article>
-      <article className="panel"><span>{locale === "ko" ? "완료율" : "Completion rate"}</span><strong>{completionRate}%</strong><small>{completed}/{planned} {locale === "ko" ? "계획 작업" : "planned tasks"}</small></article>
-      <article className="panel"><span>{locale === "ko" ? "현재 연속" : "Current streak"}</span><strong>{streak.current}{locale === "ko" ? "일" : "d"}</strong><small>{locale === "ko" ? `개인 최고 ${streak.best}일` : `Personal best ${streak.best}d`}</small></article>
-      <article className="panel"><span>{locale === "ko" ? "누적 활동일" : "Active days"}</span><strong>{streak.activeDays}{locale === "ko" ? "일" : "d"}</strong><small>{locale === "ko" ? "쉬어도 누적 기록은 유지됩니다" : "Your history stays when you rest"}</small></article>
+  return <main className="shell"><AppNav/>
+    <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "실행 기록" : "EXECUTION HISTORY"}</p><h1>{locale === "ko" ? "리포트" : "Reports"}</h1><p className="lede">{locale === "ko" ? "집중 시간이 어디에 쓰였는지 주간·월간으로 확인합니다." : "See where your focused time went, week by week or month by month."}</p></div></header>
+    <div className="reportControls"><nav className="viewSwitch"><Link className={period === "week" ? "active" : ""} href={`/growth?period=week`}>{locale === "ko" ? "주간" : "Weekly"}</Link><Link className={period === "month" ? "active" : ""} href={`/growth?period=month`}>{locale === "ko" ? "월간" : "Monthly"}</Link></nav><nav className="weekNavigator"><Link className="button secondary" href={`/growth?period=${period}&start=${dateKey(previousStart)}`}>{locale === "ko" ? "이전" : "Previous"}</Link><strong>{rangeLabel}</strong>{canNext ? <Link className="button secondary" href={`/growth?period=${period}&start=${dateKey(nextStart)}`}>{locale === "ko" ? "다음" : "Next"}</Link> : <span className="button secondary disabled">{locale === "ko" ? "다음" : "Next"}</span>}</nav></div>
+    <section className="growthMetrics reportMetrics">
+      <article className="panel"><span>{locale === "ko" ? "총 집중" : "Total focus"}</span><strong>{formatDuration(focusSeconds, false, locale)}</strong><small>{change >= 0 ? "+" : ""}{change}% {locale === "ko" ? "이전 기간 대비" : "vs previous"}</small></article>
+      <article className="panel"><span>{locale === "ko" ? "완료 작업" : "Completed tasks"}</span><strong>{completedItems.length}</strong></article>
+      <article className="panel"><span>{locale === "ko" ? "활동일" : "Active days"}</span><strong>{activeDays}</strong></article>
+      <article className="panel"><span>{locale === "ko" ? "집중 세션" : "Focus sessions"}</span><strong>{sessions.length}</strong><small>{locale === "ko" ? "평균 " : "Average "}{formatDuration(sessions.length ? Math.round(focusSeconds / sessions.length) : 0, false, locale)}</small></article>
+      <article className="panel"><span>{locale === "ko" ? "목표 대비 실행" : "Goal vs actual"}</span><strong>{goalSeconds ? `${Math.round(focusSeconds / goalSeconds * 100)}%` : "—"}</strong><small>{formatDuration(focusSeconds, false, locale)} / {formatDuration(goalSeconds, false, locale)}</small></article>
     </section>
-
-    <div className="growthGrid">
-      <section className="panel weeklyTrend">
-        <div className="sectionTitle"><h2>{locale === "ko" ? "주간 흐름" : "This week"}</h2><span>{completed} {locale === "ko" ? "개 완료" : "completed"}</span></div>
-        <div className="trendChart" aria-label={locale === "ko" ? "요일별 집중 시간" : "Daily focus time"}>
-          {dayRows.map((day, index) => <div className="trendDay" key={day.key}><div className="trendBarTrack"><i style={{ height: `${Math.max(day.focusSeconds ? 8 : 0, Math.round(day.focusSeconds / maxDayFocus * 100))}%` }}/></div><strong>{weekdays[index]}</strong><small>{day.focusSeconds ? formatDuration(day.focusSeconds, false, locale) : "—"}</small></div>)}
-        </div>
-      </section>
-
-      <section className="panel goalCard">
-        <div className="sectionTitle"><h2>{locale === "ko" ? "주간 집중 목표" : "Weekly focus goal"}</h2><span>{achieved ? (locale === "ko" ? "달성" : "Achieved") : `${goalPercent}%`}</span></div>
-        <progress max={goalSeconds} value={Math.min(focusSeconds, goalSeconds)}/>
-        <p>{formatDuration(focusSeconds, false, locale)} / {formatDuration(goalSeconds, false, locale)}</p>
-        {isCurrentWeek ? <form action={updateWeeklyFocusGoal}><input type="hidden" name="weekStart" value={dateKey(currentWeekStart)}/><label><span>{locale === "ko" ? "목표 시간(분)" : "Goal in minutes"}</span><input name="weeklyFocusMinutes" type="number" min="30" max="10080" defaultValue={goalMinutes}/></label><button className="button secondary">{locale === "ko" ? "저장" : "Save"}</button></form> : <p className="goalHistoryNote">{savedGoal ? (locale === "ko" ? `이 주에 저장된 목표 · ${achieved ? "달성" : "미달성"}` : `Saved goal · ${achieved ? "achieved" : "not achieved"}`) : (locale === "ko" ? "이 주에는 저장된 목표 기록이 없습니다." : "No saved goal record for this week.")}</p>}
-        {isCurrentWeek && <small className="goalHelp">{locale === "ko" ? "최소 30분입니다. 변경한 목표는 이 주의 기록으로 보존됩니다." : "Minimum 30 minutes. Changes are preserved with this week."}</small>}
-      </section>
-    </div>
+    <section className="panel weeklyTrend reportTrend"><div className="sectionTitle"><h2>{locale === "ko" ? "날짜별 집중" : "Focus by day"}</h2></div><div className={`trendChart ${period === "month" ? "monthly" : ""}`}>{dayRows.map(day => <div className="trendDay" key={day.key}><div className="trendBarTrack"><i style={{ height: `${Math.max(day.seconds ? 6 : 0, Math.round(day.seconds / maxDay * 100))}%` }}/></div><strong>{Number(day.key.slice(-2))}</strong><small>{day.seconds ? formatDuration(day.seconds, false, locale) : "—"}</small></div>)}</div></section>
+    <div className="reportBreakdowns">{[[locale === "ko" ? "Area별" : "By Area", areas], [locale === "ko" ? "Project별" : "By Project", projects], [locale === "ko" ? "Task별" : "By Task", tasks]].map(([title, rows]) => <section className="panel reportRanking" key={title as string}><h2>{title as string}</h2>{(rows as [string, number][]).slice(0, 8).map(([name, seconds]) => <div key={name}><span>{name}</span><strong>{formatDuration(seconds, false, locale)}</strong></div>)}{!(rows as [string, number][]).length && <p className="columnEmpty">{locale === "ko" ? "집중 기록이 없습니다." : "No focus records."}</p>}</section>)}</div>
+    <section className="panel completedReport"><h2>{locale === "ko" ? "완료한 작업" : "Completed tasks"}</h2>{completedItems.map(item => <div key={item.id}><span>{item.titleSnapshot}</span><time>{dateKey(item.date)}</time></div>)}{!completedItems.length && <p className="columnEmpty">{locale === "ko" ? "완료 기록이 없습니다." : "No completed tasks."}</p>}</section>
   </main>;
 }

@@ -2,7 +2,7 @@
 
 import { useRef, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { archiveTask, createSubtask, deleteSection, deleteTask, moveProjectSection, moveProjectTask, moveTaskToProject, updateSection, updateTask } from "@/lib/actions";
+import { archiveTask, createSubtask, deleteSection, deleteTask, moveProjectSection, moveProjectTask, moveTaskToInbox, updateSection, updateTask } from "@/lib/actions";
 import type { Locale } from "@/lib/i18n";
 import { ConfirmSubmit, EditableText } from "./editable-text";
 import { TaskPlanningFields } from "./task-planning-fields";
@@ -135,7 +135,7 @@ export function ProjectTaskBoard({ projectId, viewMode, sections, tasks, locale,
               <TaskSchedulePicker taskId={task.id} locale={locale} scheduledItem={task.scheduledItem}/>
               <div className="cardTaskActions">
                 <details className="moreMenu"><summary aria-label={locale === "ko" ? "이동 메뉴" : "Move menu"}>⋯</summary><div>
-                  <form action={moveTaskToProject}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="projectId" value=""/><button className="textButton accent">{locale === "ko" ? "Inbox로 이동" : "Move to Inbox"}</button></form>
+                  <form action={moveTaskToInbox}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="returnProjectId" value={projectId}/><button className="textButton accent">{locale === "ko" ? "Inbox로 이동" : "Move to Inbox"}</button></form>
                   <button type="button" className="textButton" disabled={!reorderEnabled || taskIndex === 0 || pending} onClick={() => runTaskMove(task.id, column.id, taskIndex - 1)}>{locale === "ko" ? "위로 이동" : "Move up"}</button>
                   <button type="button" className="textButton" disabled={!reorderEnabled || taskIndex === columnTasks.length - 1 || pending} onClick={() => runTaskMove(task.id, column.id, taskIndex + 1)}>{locale === "ko" ? "아래로 이동" : "Move down"}</button>
                   <button type="button" className="textButton" disabled={!reorderEnabled || columnIndex === 0 || pending} onClick={() => runTaskMove(task.id, columns[columnIndex - 1].id, 0)}>{locale === "ko" ? "이전 섹션" : "Previous section"}</button>

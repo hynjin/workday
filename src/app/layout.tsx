@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 import { generateOccurrences } from "@/lib/recurrence";
 import { getWorkdayDate } from "@/lib/workday-date";
 import { getOptionalUser } from "@/lib/auth";
+import { SessionKeeper } from "@/components/session-keeper";
+import { PopoverCloser } from "@/components/popover-closer";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -28,5 +30,5 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
       prisma.area.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } }),
     ]);
   }
-  return <html lang={locale}><body>{children}{user && <><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} areas={areas} locale={locale}/></>}</body></html>;
+  return <html lang={locale}><body>{children}{user && <><SessionKeeper/><PopoverCloser/><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} areas={areas} locale={locale}/></>}</body></html>;
 }
