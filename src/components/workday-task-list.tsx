@@ -2,7 +2,7 @@
 
 import { useRef, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
-import { reorderWorkdayItem, saveWorkdayItemToLibrary, startFocus, toggleItemComplete } from "@/lib/actions";
+import { moveWorkdayItem, removeWorkdayItem, reorderWorkdayItem, saveWorkdayItemToLibrary, startFocus, toggleItemComplete } from "@/lib/actions";
 import type { Locale } from "@/lib/i18n";
 import { formatDuration } from "@/lib/workday-date";
 
@@ -18,17 +18,18 @@ type WorkItem = {
   estimatedMinutes: number | null;
 };
 
-export function WorkdayTaskList({ items, locale, actionable, planning, historical }: {
+export function WorkdayTaskList({ items, locale, actionable, planning, historical, selectedDate }: {
   items: WorkItem[];
   locale: Locale;
   actionable: boolean;
   planning: boolean;
   historical: boolean;
+  selectedDate: string;
 }) {
   const router = useRouter();
   const dragging = useRef<string | null>(null);
   const [pending, startTransition] = useTransition();
-  const reorderable = actionable || planning;
+  const reorderable = actionable;
   const move = (id: string, index: number) => startTransition(async () => {
     await reorderWorkdayItem(id, index);
     router.refresh();
@@ -45,6 +46,12 @@ export function WorkdayTaskList({ items, locale, actionable, planning, historica
     <div className="workItemBody"><div className="taskTitleLine"><h3>{item.title}</h3><span className="itemCategory">{item.parentTitle ? `${item.parentTitle} › ` : ""}{item.projectTitle ?? (item.taskId ? (locale === "ko" ? "받은편지함" : "Inbox") : (locale === "ko" ? "하루 작업" : "One-off"))}</span></div><p>{formatDuration(item.seconds, false, locale)} · {item.sessionCount} {locale === "ko" ? "회 집중" : "sessions"}{item.estimatedMinutes ? ` · ${locale === "ko" ? "예상" : "Est."} ${item.estimatedMinutes}${locale === "ko" ? "분" : "m"}` : ""}</p>
       {!item.taskId && !historical && <form action={saveWorkdayItemToLibrary} className="promoteForm"><input type="hidden" name="itemId" value={item.id}/><button className="textButton accent">{locale === "ko" ? "받은편지함에 저장" : "Save to Inbox"}</button></form>}
     </div>
-    {(actionable || planning) && <div className="actions">{actionable && <>{item.status !== "completed" && <form action={startFocus}><input type="hidden" name="itemId" value={item.id}/><button className="button secondary">{locale === "ko" ? "집중 시작" : "Start focus"}</button></form>}<form action={toggleItemComplete}><input type="hidden" name="itemId" value={item.id}/><button className="button">{item.status === "completed" ? (locale === "ko" ? "완료 취소" : "Undo") : (locale === "ko" ? "완료" : "Complete")}</button></form></>}<details className="moreMenu"><summary aria-label={locale === "ko" ? "순서 이동 메뉴" : "Reorder menu"}>⋯</summary><div><button type="button" className="textButton" disabled={!reorderable || index === 0 || pending} onClick={() => move(item.id, index - 1)}>{locale === "ko" ? "위로 이동" : "Move up"}</button><button type="button" className="textButton" disabled={!reorderable || index === items.length - 1 || pending} onClick={() => move(item.id, index + 1)}>{locale === "ko" ? "아래로 이동" : "Move down"}</button></div></details></div>}
+    {(actionable || planning) && <div className="actions">
+      {actionable && <>{item.status !== "completed" && <form action={startFocus}><input type="hidden" name="itemId" value={item.id}/><button className="button secondary">{locale === "ko" ? "집중 시작" : "Start focus"}</button></form>}<form action={toggleItemComplete}><input type="hidden" name="itemId" value={item.id}/><button className="button">{item.status === "completed" ? (locale === "ko" ? "완료 취소" : "Undo") : (locale === "ko" ? "완료" : "Complete")}</button></form></>}
+      <details className="moreMenu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}>⋯</summary><div>
+        {planning && <><form action={moveWorkdayItem}><input type="hidden" name="itemId" value={item.id}/><input type="date" name="date" defaultValue={selectedDate} aria-label={locale === "ko" ? "일정 변경" : "Change date"}/><button className="textButton accent">{locale === "ko" ? "날짜 변경" : "Change date"}</button></form><form action={removeWorkdayItem}><input type="hidden" name="itemId" value={item.id}/><button className="textButton dangerText">{locale === "ko" ? "일정 해제" : "Clear date"}</button></form></>}
+        {actionable && <><button type="button" className="textButton" disabled={index === 0 || pending} onClick={() => move(item.id, index - 1)}>{locale === "ko" ? "위로 이동" : "Move up"}</button><button type="button" className="textButton" disabled={index === items.length - 1 || pending} onClick={() => move(item.id, index + 1)}>{locale === "ko" ? "아래로 이동" : "Move down"}</button></>}
+      </div></details>
+    </div>}
   </article>)}</div>;
 }

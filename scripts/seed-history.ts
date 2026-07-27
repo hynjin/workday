@@ -2,22 +2,24 @@ import { PrismaClient } from "@prisma/client";
 import { dateKeyToDate, getWorkdayDate } from "../src/lib/workday-date";
 
 const prisma = new PrismaClient();
+const userId = process.env.SEED_USER_ID;
 const templates = [
   [{ title: "영어 듣기 30분", completed: true, seconds: 1920 }, { title: "문서 정리", completed: false, seconds: 3300 }],
   [{ title: "인터뷰 답변 정리", completed: true, seconds: 6300 }, { title: "세금 서류 확인", completed: true, seconds: 1500 }],
 ];
 
 async function main() {
+  if (!userId) throw new Error("SEED_USER_ID에 확인된 Supabase Auth 사용자 UUID를 지정해 주세요.");
   const cursor = dateKeyToDate(getWorkdayDate());
   let created = 0, daysBack = 1;
   while (created < templates.length && daysBack < 30) {
     const date = new Date(cursor);
     date.setUTCDate(date.getUTCDate() - daysBack++);
-    if (await prisma.workday.findUnique({ where: { workdayDate: date } })) continue;
+    if (await prisma.workday.findUnique({ where: { userId_workdayDate: { userId, workdayDate: date } } })) continue;
     const startedAt = new Date(date.getTime() + 14 * 60 * 60 * 1000);
     const endedAt = new Date(date.getTime() + 22 * 60 * 60 * 1000);
     await prisma.workday.create({ data: {
-      workdayDate: date, status: "completed", startedAt, endedAt,
+      userId, workdayDate: date, status: "completed", startedAt, endedAt,
       items: { create: templates[created].map((item, index) => ({
         titleSnapshot: item.title, legacyTitle: item.title, status: item.completed ? "completed" : "planned",
         completedAt: item.completed ? new Date(startedAt.getTime() + (index + 1) * 60 * 60 * 1000) : null,

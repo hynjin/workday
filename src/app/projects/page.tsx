@@ -3,25 +3,27 @@ import { AppNav } from "@/components/app-nav";
 import { ConfirmSubmit, EditableText } from "@/components/editable-text";
 import { ProjectTaskBoard } from "@/components/project-task-board";
 import {
-  archiveProject, createProject, createSection, createTask, deleteProject, deleteTask,
-  restoreProject, restoreTask, setProjectViewMode, updateProject,
+  archiveProject, completeProject, createProject, createSection, createTask, deleteProject, deleteTask,
+  reopenProject, restoreProject, restoreTask, setProjectViewMode, updateProject,
 } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { parseTaskSort, sortTasks } from "@/lib/task-sort";
-import { formatDuration } from "@/lib/workday-date";
+import { dateKeyToDate, formatDuration, getWorkdayDate } from "@/lib/workday-date";
 
 export const dynamic = "force-dynamic";
 
 export default async function ProjectsPage({ searchParams }: { searchParams: Promise<{ project?: string; sort?: string }> }) {
   const [params, locale] = await Promise.all([searchParams, getLocale()]);
+  const today = getWorkdayDate();
   const sort = parseTaskSort(params.sort);
-  const [projects, archivedProjects, archivedTasks] = await Promise.all([
+  const [projects, completedProjects, archivedProjects, archivedTasks] = await Promise.all([
     prisma.project.findMany({
       where: { status: "active" },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       include: { tasks: { where: { status: "active", parentTaskId: null }, select: { id: true } } },
     }),
+    prisma.project.findMany({ where: { status: "completed" }, orderBy: { completedAt: "desc" }, include: { _count: { select: { tasks: true } } } }),
     prisma.project.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { _count: { select: { tasks: true } } } }),
     prisma.task.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { project: true } }),
   ]);
@@ -35,11 +37,11 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
         include: {
           recurrenceRule: true,
-          items: { select: { status: true, focusSessions: true } },
+          items: { select: { id: true, status: true, recurrenceRuleId: true, workday: { select: { workdayDate: true, status: true } }, focusSessions: true } },
           subtasks: {
             where: { status: "active" },
             orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
-            select: { id: true, title: true, items: { select: { status: true, focusSessions: true } } },
+            select: { id: true, title: true, items: { select: { id: true, status: true, recurrenceRuleId: true, workday: { select: { workdayDate: true, status: true } }, focusSessions: true } } },
           },
         },
       },
@@ -51,6 +53,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     const allItems = [...task.items, ...subtaskItems];
     const sessions = allItems.flatMap(item => item.focusSessions);
     const focusSeconds = sessions.reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
+    const scheduledItem = task.items.find(item => item.status === "planned" && item.recurrenceRuleId === null && item.workday.status !== "completed" && item.workday.workdayDate >= dateKeyToDate(today));
     return {
       id: task.id,
       title: task.title,
@@ -61,6 +64,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       focusSeconds,
       sessionCount: sessions.length,
       completedCount: allItems.filter(item => item.status === "completed").length,
+      scheduledItem: scheduledItem ? { id: scheduledItem.id, date: scheduledItem.workday.workdayDate.toISOString().slice(0, 10) } : null,
       recurrenceRule: task.recurrenceRule ? {
         frequency: task.recurrenceRule.frequency,
         interval: task.recurrenceRule.interval,
@@ -69,7 +73,10 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         startsOn: task.recurrenceRule.startsOn.toISOString(),
         endsOn: task.recurrenceRule.endsOn?.toISOString() ?? null,
       } : null,
-      subtasks: task.subtasks.map(subtask => ({ id: subtask.id, title: subtask.title })),
+      subtasks: task.subtasks.map(subtask => {
+        const scheduled = subtask.items.find(item => item.status === "planned" && item.recurrenceRuleId === null && item.workday.status !== "completed" && item.workday.workdayDate >= dateKeyToDate(today));
+        return { id: subtask.id, title: subtask.title, scheduledItem: scheduled ? { id: scheduled.id, date: scheduled.workday.workdayDate.toISOString().slice(0, 10) } : null };
+      }),
     };
   }), sort) : [];
   const projectSeconds = taskViews.reduce((sum, task) => sum + task.focusSeconds, 0);
@@ -86,7 +93,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       </aside>
       <section className="projectWorkspaceMain">{selected ? <>
         <div className="panel projectTasks">
-          <header className="taskWorkspaceHeader"><div><p className="workspaceLabel">{locale === "ko" ? "프로젝트 작업" : "PROJECT TASKS"}</p><EditableText action={updateProject} idName="projectId" id={selected.id} value={selected.title} label={locale === "ko" ? "프로젝트 이름 수정" : "Rename project"} className="categoryName"/><p>{locale === "ko" ? "섹션은 칸반의 열이 되며 날짜별 실행 상태와는 독립적입니다." : "Sections become Kanban columns and remain independent from daily execution."}</p></div><div className="libraryActions"><form action={archiveProject}><input type="hidden" name="projectId" value={selected.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form><ConfirmSubmit action={deleteProject} fields={{ projectId: selected.id }} message={locale === "ko" ? `‘${selected.title}’ 프로젝트를 삭제할까요? 작업은 받은편지함으로 이동합니다.` : `Delete “${selected.title}”? Its tasks will move to Inbox.`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></header>
+          <header className="taskWorkspaceHeader"><div><p className="workspaceLabel">{locale === "ko" ? "프로젝트 컨테이너 · Task와 Subtask를 날짜에 실행" : "PROJECT CONTAINER · Schedule tasks and subtasks"}</p><EditableText action={updateProject} idName="projectId" id={selected.id} value={selected.title} label={locale === "ko" ? "프로젝트 이름 수정" : "Rename project"} className="categoryName"/><p>{locale === "ko" ? "프로젝트 자체가 아니라 Task와 선택적인 Subtask가 오늘 또는 다른 날짜의 실행 단위가 됩니다." : "Tasks and optional subtasks—not the project itself—are the units you schedule and execute."}</p></div><div className="libraryActions"><form action={completeProject}><input type="hidden" name="projectId" value={selected.id}/><button className="textButton accent">{locale === "ko" ? "프로젝트 완료" : "Complete project"}</button></form><form action={archiveProject}><input type="hidden" name="projectId" value={selected.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form><ConfirmSubmit action={deleteProject} fields={{ projectId: selected.id }} message={locale === "ko" ? `‘${selected.title}’ 프로젝트를 삭제할까요? 작업은 받은편지함으로 이동합니다.` : `Delete “${selected.title}”? Its tasks will move to Inbox.`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></header>
           <div className="projectToolbar">
             <div className="viewSwitch" aria-label={locale === "ko" ? "프로젝트 보기 방식" : "Project view"}>
               <form action={setProjectViewMode}><input type="hidden" name="projectId" value={selected.id}/><input type="hidden" name="viewMode" value="list"/><button className={selected.viewMode === "list" ? "active" : ""}>{locale === "ko" ? "목록" : "List"}</button></form>
@@ -108,6 +115,6 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         </section>
       </> : <section className="panel emptyState"><p>{locale === "ko" ? "첫 프로젝트를 만들거나 받은편지함에 작업을 수집하세요." : "Create your first project or capture tasks in Inbox."}</p></section>}</section>
     </div>
-    <details className="panel archiveBox"><summary>{locale === "ko" ? "보관함" : "Archive"} ({archivedProjects.length + archivedTasks.length})</summary><div className="archiveGroups"><section><h3>{locale === "ko" ? "보관된 프로젝트" : "Archived projects"}</h3>{archivedProjects.map(project => <div className="archiveRow" key={project.id}><span>{project.title}<small>{project._count.tasks}</small></span><div className="libraryActions"><form action={restoreProject}><input type="hidden" name="projectId" value={project.id}/><button className="textButton accent">{locale === "ko" ? "복원" : "Restore"}</button></form><ConfirmSubmit action={deleteProject} fields={{ projectId: project.id }} message={locale === "ko" ? `‘${project.title}’ 프로젝트를 삭제할까요?` : `Delete “${project.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</section><section><h3>{locale === "ko" ? "보관된 작업" : "Archived tasks"}</h3>{archivedTasks.map(task => <div className="archiveRow" key={task.id}><span>{task.title}<small>{task.project?.title ?? (locale === "ko" ? "받은편지함" : "Inbox")}</small></span><div className="libraryActions"><form action={restoreTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton accent">{locale === "ko" ? "복원" : "Restore"}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요?` : `Delete “${task.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</section></div></details>
+    <details className="panel archiveBox"><summary>{locale === "ko" ? "완료·보관" : "Completed & archive"} ({completedProjects.length + archivedProjects.length + archivedTasks.length})</summary><div className="archiveGroups"><section><h3>{locale === "ko" ? "완료된 프로젝트" : "Completed projects"}</h3>{completedProjects.map(project => <div className="archiveRow" key={project.id}><span>{project.title}<small>{project.completedAt?.toISOString().slice(0, 10)}</small></span><div className="libraryActions"><form action={reopenProject}><input type="hidden" name="projectId" value={project.id}/><button className="textButton accent">{locale === "ko" ? "완료 취소" : "Reopen"}</button></form><form action={archiveProject}><input type="hidden" name="projectId" value={project.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form></div></div>)}</section><section><h3>{locale === "ko" ? "보관된 프로젝트" : "Archived projects"}</h3>{archivedProjects.map(project => <div className="archiveRow" key={project.id}><span>{project.title}<small>{project._count.tasks}</small></span><div className="libraryActions"><form action={restoreProject}><input type="hidden" name="projectId" value={project.id}/><button className="textButton accent">{locale === "ko" ? "복원" : "Restore"}</button></form><ConfirmSubmit action={deleteProject} fields={{ projectId: project.id }} message={locale === "ko" ? `‘${project.title}’ 프로젝트를 삭제할까요?` : `Delete “${project.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</section><section><h3>{locale === "ko" ? "보관된 작업" : "Archived tasks"}</h3>{archivedTasks.map(task => <div className="archiveRow" key={task.id}><span>{task.title}<small>{task.project?.title ?? (locale === "ko" ? "받은편지함" : "Inbox")}</small></span><div className="libraryActions"><form action={restoreTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton accent">{locale === "ko" ? "복원" : "Restore"}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요?` : `Delete “${task.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</section></div></details>
   </main>;
 }

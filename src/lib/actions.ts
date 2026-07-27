@@ -7,6 +7,7 @@ import { z } from "zod";
 import { prisma } from "./prisma";
 import { generateOccurrences } from "./recurrence";
 import { dateKeyToDate, getWorkdayDate, nextDate } from "./workday-date";
+import { ownedWorkdayWhere } from "./auth";
 
 const titleSchema = z.string().trim().min(1, "제목을 입력해 주세요.").max(120, "제목은 120자 이하여야 합니다.");
 const idSchema = z.string().min(1);
@@ -35,7 +36,7 @@ export async function createProject(form: FormData) {
   const title = titleFrom(form);
   const existing = await prisma.project.findFirst({ where: { title: { equals: title, mode: "insensitive" } } });
   const project = existing
-    ? await prisma.project.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } })
+    ? await prisma.project.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null, completedAt: null } })
     : await prisma.project.create({ data: { title } });
   refreshWorkspace();
   redirect(`/projects?project=${project.id}`);
@@ -55,7 +56,28 @@ export async function archiveProject(form: FormData) {
 }
 
 export async function restoreProject(form: FormData) {
-  await prisma.project.update({ where: { id: idFrom(form, "projectId") }, data: { status: "active", archivedAt: null } });
+  const id = idFrom(form, "projectId");
+  const project = await prisma.project.findUniqueOrThrow({ where: { id } });
+  await prisma.project.update({
+    where: { id },
+    data: { status: project.completedAt ? "completed" : "active", archivedAt: null },
+  });
+  refreshWorkspace();
+}
+
+export async function completeProject(form: FormData) {
+  await prisma.project.update({
+    where: { id: idFrom(form, "projectId"), status: "active" },
+    data: { status: "completed", completedAt: new Date(), archivedAt: null },
+  });
+  refreshWorkspace();
+}
+
+export async function reopenProject(form: FormData) {
+  await prisma.project.update({
+    where: { id: idFrom(form, "projectId"), status: "completed" },
+    data: { status: "active", completedAt: null },
+  });
   refreshWorkspace();
 }
 
@@ -293,7 +315,8 @@ export async function quickAddTask(form: FormData) {
     const today = getWorkdayDate();
     const dateKey = destination === "today" ? today : destination === "tomorrow" ? nextDate(dateKeyToDate(today)).toISOString().slice(0, 10) : customDate!;
     if (dateKey < today) throw new Error("지난 날짜에는 새 작업을 추가할 수 없습니다.");
-    const workday = await tx.workday.upsert({ where: { workdayDate: dateKeyToDate(dateKey) }, create: { workdayDate: dateKeyToDate(dateKey) }, update: {} });
+    const workdayDate = dateKeyToDate(dateKey);
+    const workday = await tx.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
     if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
     await tx.workdayItem.createMany({
       data: [{ workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title }],
@@ -372,16 +395,52 @@ export async function deleteRecurrenceRule(form: FormData) {
 
 export async function scheduleTaskForDate(form: FormData) {
   const taskId = idFrom(form, "taskId"), dateKey = dateSchema.parse(form.get("date"));
+  const scheduledItemId = optionalIdFrom(form, "scheduledItemId");
   const today = getWorkdayDate();
   if (dateKey < today) throw new Error("지난 날짜에는 계획할 수 없습니다.");
+  if (scheduledItemId) {
+    const scheduledItem = await prisma.workdayItem.findFirstOrThrow({
+      where: {
+        id: scheduledItemId,
+        taskId,
+        status: "planned",
+        recurrenceRuleId: null,
+        workday: { status: { not: "completed" } },
+      },
+    });
+    await scheduleItem(scheduledItem.id, dateKey, "move");
+    return;
+  }
   await prisma.$transaction(async (tx) => {
     const task = await tx.task.findFirstOrThrow({ where: { id: taskId, status: "active" } });
-    const workday = await tx.workday.upsert({ where: { workdayDate: dateKeyToDate(dateKey) }, create: { workdayDate: dateKeyToDate(dateKey) }, update: {} });
+    const workdayDate = dateKeyToDate(dateKey);
+    const workday = await tx.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
     if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
     await tx.workdayItem.createMany({
       data: [{ workdayId: workday.id, taskId, titleSnapshot: task.title, legacyTitle: task.title }],
       skipDuplicates: true,
     });
+  });
+  refreshWorkspace();
+}
+
+export async function unscheduleTask(form: FormData) {
+  const taskId = idFrom(form, "taskId");
+  const itemId = idFrom(form, "scheduledItemId");
+  await prisma.$transaction(async (tx) => {
+    const item = await tx.workdayItem.findFirstOrThrow({
+      where: {
+        id: itemId,
+        taskId,
+        status: "planned",
+        recurrenceRuleId: null,
+        workday: { status: { not: "completed" } },
+      },
+    });
+    if (await tx.focusSession.findFirst({ where: { workdayItemId: item.id, endedAt: null } })) {
+      throw new Error("집중 중인 작업은 일정 해제할 수 없습니다.");
+    }
+    await tx.workdayItem.delete({ where: { id: item.id } });
   });
   refreshWorkspace();
 }
@@ -435,7 +494,8 @@ async function scheduleItem(itemId: string, dateKey: string, mode: "move" | "cop
     const source = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
     if (source.workday.status === "completed") throw new Error("지난 작업일 기록은 변경할 수 없습니다.");
     if (await tx.focusSession.findFirst({ where: { workdayItemId: itemId, endedAt: null } })) throw new Error("집중 중인 작업은 이동할 수 없습니다.");
-    const target = await tx.workday.upsert({ where: { workdayDate: dateKeyToDate(dateKey) }, create: { workdayDate: dateKeyToDate(dateKey) }, update: {} });
+    const workdayDate = dateKeyToDate(dateKey);
+    const target = await tx.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
     if (target.status === "completed") throw new Error("종료된 작업일로 이동할 수 없습니다.");
     const duplicate = source.taskId
       ? await tx.workdayItem.findFirst({ where: { workdayId: target.id, taskId: source.taskId } })
@@ -476,7 +536,10 @@ export async function toggleItemComplete(form: FormData) {
   const itemId = idFrom(form, "itemId");
   await prisma.$transaction(async (tx) => {
     const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
-    if (item.workday.status !== "active") throw new Error("진행 중인 작업일만 변경할 수 있습니다.");
+    const itemDate = item.workday.workdayDate.toISOString().slice(0, 10);
+    if (itemDate !== getWorkdayDate() || item.workday.status === "completed") {
+      throw new Error("오늘 작업만 완료 상태를 변경할 수 있습니다.");
+    }
     const completed = item.status === "completed";
     const completedAt = completed ? null : new Date();
     await tx.workdayItem.update({ where: { id: itemId }, data: { status: completed ? "planned" : "completed", completedAt } });
@@ -508,7 +571,10 @@ export async function startFocus(form: FormData) {
   const itemId = idFrom(form, "itemId");
   const session = await prisma.$transaction(async (tx) => {
     const item = await tx.workdayItem.findUniqueOrThrow({ where: { id: itemId }, include: { workday: true } });
-    if (item.workday.status !== "active") throw new Error("진행 중인 작업일이 아닙니다.");
+    const itemDate = item.workday.workdayDate.toISOString().slice(0, 10);
+    if (itemDate !== getWorkdayDate() || item.workday.status === "completed") {
+      throw new Error("오늘 작업에서만 집중을 시작할 수 있습니다.");
+    }
     if (item.status === "completed") throw new Error("완료 취소 후 집중을 시작해 주세요.");
     const active = await tx.focusSession.findFirst({ where: { endedAt: null } });
     return active ?? tx.focusSession.create({ data: { workdayItemId: itemId } });
@@ -530,10 +596,19 @@ export async function endFocus(form: FormData) {
 
 export async function updateWeeklyFocusGoal(form: FormData) {
   const weeklyFocusMinutes = z.coerce.number().int().min(30).max(10080).parse(form.get("weeklyFocusMinutes"));
-  await prisma.productivityGoal.upsert({
-    where: { id: "default" },
-    create: { weeklyFocusMinutes },
-    update: { weeklyFocusMinutes },
+  const weekStart = dateKeyToDate(dateSchema.parse(form.get("weekStart")));
+  const currentWeekStart = dateKeyToDate(futureDateKey(0));
+  currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() - ((currentWeekStart.getUTCDay() + 6) % 7));
+  if (weekStart.getTime() !== currentWeekStart.getTime()) throw new Error("현재 주의 목표만 변경할 수 있습니다.");
+  await prisma.$transaction(async (tx) => {
+    await tx.productivityGoal.upsert({
+      where: { id: "default" },
+      create: { weeklyFocusMinutes },
+      update: { weeklyFocusMinutes },
+    });
+    const existing = await tx.weeklyFocusGoal.findFirst({ where: { userId: null, weekStart } });
+    if (existing) await tx.weeklyFocusGoal.update({ where: { id: existing.id }, data: { weeklyFocusMinutes } });
+    else await tx.weeklyFocusGoal.create({ data: { weekStart, weeklyFocusMinutes } });
   });
   revalidatePath("/growth");
 }

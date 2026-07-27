@@ -26,7 +26,8 @@ type ProjectTask = {
   focusSeconds: number;
   sessionCount: number;
   recurrenceRule: Rule | null;
-  subtasks: { id: string; title: string }[];
+  scheduledItem: { id: string; date: string } | null;
+  subtasks: { id: string; title: string; scheduledItem: { id: string; date: string } | null }[];
 };
 
 type ProjectSection = {
@@ -131,7 +132,7 @@ export function ProjectTaskBoard({ projectId, viewMode, sections, tasks, locale,
             >
               <div className="taskCardHeading"><span className="dragHandle" draggable={reorderEnabled} onDragStart={event => beginDrag(event, { kind: "task", id: task.id })} aria-label={locale === "ko" ? "작업 끌어서 이동" : "Drag to move task"} role="button" tabIndex={0}>⠿</span><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={locale === "ko" ? "작업 이름 수정" : "Rename task"}/></div>
               <p>{task.estimatedMinutes ? `${locale === "ko" ? "예상" : "Est."} ${task.estimatedMinutes}${locale === "ko" ? "분" : "m"} · ` : ""}{locale === "ko" ? "집중" : "Focus"} {duration(task.focusSeconds, locale)} · {task.sessionCount}{locale === "ko" ? "회" : ""}</p>
-              <TaskSchedulePicker taskId={task.id} locale={locale}/>
+              <TaskSchedulePicker taskId={task.id} locale={locale} scheduledItem={task.scheduledItem}/>
               <div className="cardTaskActions">
                 <form action={moveTaskToProject}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="projectId" value=""/><button className="textButton accent">{locale === "ko" ? "받은편지함" : "Inbox"}</button></form>
                 <form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form>
@@ -146,7 +147,7 @@ export function ProjectTaskBoard({ projectId, viewMode, sections, tasks, locale,
               <TaskPlanningFields taskId={task.id} estimatedMinutes={task.estimatedMinutes} rule={task.recurrenceRule} locale={locale}/>
               <details className="subtaskGroup compact">
                 <summary>{locale === "ko" ? "하위 작업" : "Subtasks"} <span>{task.subtasks.length}</span></summary>
-                <div className="subtaskList">{task.subtasks.map(subtask => <div className="subtaskRow" key={subtask.id}><EditableText action={updateTask} idName="taskId" id={subtask.id} value={subtask.title} label={locale === "ko" ? "하위 작업 이름 수정" : "Rename subtask"}/><div className="subtaskActions"><TaskSchedulePicker taskId={subtask.id} locale={locale} compact/><ConfirmSubmit action={deleteTask} fields={{ taskId: subtask.id }} message={locale === "ko" ? `‘${subtask.title}’ 하위 작업을 삭제할까요?` : `Delete subtask “${subtask.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</div>
+                <div className="subtaskList">{task.subtasks.map(subtask => <div className="subtaskRow" key={subtask.id}><EditableText action={updateTask} idName="taskId" id={subtask.id} value={subtask.title} label={locale === "ko" ? "하위 작업 이름 수정" : "Rename subtask"}/><div className="subtaskActions"><TaskSchedulePicker taskId={subtask.id} locale={locale} compact scheduledItem={subtask.scheduledItem}/><ConfirmSubmit action={deleteTask} fields={{ taskId: subtask.id }} message={locale === "ko" ? `‘${subtask.title}’ 하위 작업을 삭제할까요?` : `Delete subtask “${subtask.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</div>
                 <form action={createSubtask} className="subtaskCreate"><input type="hidden" name="parentTaskId" value={task.id}/><input name="title" required maxLength={120} placeholder={locale === "ko" ? "새 하위 작업" : "New subtask"} aria-label={locale === "ko" ? "새 하위 작업 이름" : "New subtask name"}/><button className="textButton accent">{locale === "ko" ? "추가" : "Add"}</button></form>
               </details>
             </article>)}

@@ -5,6 +5,7 @@ import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { prisma } from "@/lib/prisma";
 import { generateOccurrences } from "@/lib/recurrence";
 import { getWorkdayDate } from "@/lib/workday-date";
+import { getOptionalUser } from "@/lib/auth";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -16,8 +17,12 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
-  const today = getWorkdayDate();
-  await generateOccurrences({ from: today, to: today });
-  const projects = await prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } });
-  return <html lang={locale}><body>{children}<KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} locale={locale}/></body></html>;
+  const user = await getOptionalUser();
+  let projects: { id: string; title: string }[] = [];
+  if (user) {
+    const today = getWorkdayDate();
+    await generateOccurrences({ from: today, to: today });
+    projects = await prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } });
+  }
+  return <html lang={locale}><body>{children}{user && <><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} locale={locale}/></>}</body></html>;
 }

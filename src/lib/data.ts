@@ -1,4 +1,5 @@
 import { prisma } from "./prisma";
+import { ownedWorkdayWhere } from "./auth";
 import { dateKeyToDate, getBoundaryInstant, getWorkdayDate } from "./workday-date";
 
 export async function getOrCreateCurrentWorkday() {
@@ -18,7 +19,7 @@ export async function getOrCreateCurrentWorkday() {
       await tx.workday.update({ where: { id: active.id }, data: { status: "completed", endedAt } });
     });
   }
-  const existing = await prisma.workday.findUnique({ where: { workdayDate: date } });
+  const existing = await prisma.workday.findUnique({ where: await ownedWorkdayWhere(date) });
   if (existing?.status === "completed") {
     const itemCount = await prisma.workdayItem.count({ where: { workdayId: existing.id } });
     return prisma.workday.update({ where: { id: existing.id }, data: { status: itemCount || existing.startedAt ? "active" : "planning", endedAt: null } });
@@ -31,7 +32,7 @@ export async function getOrCreateWorkdayForDate(key: string) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(key) || key < currentKey) throw new Error("오늘 이후의 날짜만 계획할 수 있습니다.");
   if (key === currentKey) return getOrCreateCurrentWorkday();
   const workdayDate = dateKeyToDate(key);
-  return prisma.workday.upsert({ where: { workdayDate }, create: { workdayDate }, update: {} });
+  return prisma.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
 }
 
 export async function getWorkdayView(id: string) {

@@ -29,6 +29,12 @@ enum ProjectViewMode {
   board
 }
 
+enum ProjectStatus {
+  active
+  completed
+  archived
+}
+
 enum RecurrenceFrequency {
   daily
   weekly
@@ -45,6 +51,7 @@ enum ProductivityEventType {
 
 model Task {
   id               String        @id @default(cuid())
+  userId           String?       @db.Uuid
   projectId        String?
   sectionId        String?
   parentTaskId     String?
@@ -64,12 +71,14 @@ model Task {
   recurrenceRule   RecurrenceRule?
 
   @@index([projectId, status])
+  @@index([userId, status])
   @@index([sectionId, sortOrder])
   @@index([parentTaskId, status])
 }
 
 model RecurrenceRule {
   id             String              @id @default(cuid())
+  userId         String?             @db.Uuid
   taskId         String              @unique
   frequency      RecurrenceFrequency
   interval       Int                 @default(1)
@@ -84,23 +93,29 @@ model RecurrenceRule {
   items          WorkdayItem[]
 
   @@index([generatedUntil])
+  @@index([userId, generatedUntil])
 }
 
 model Project {
   id         String        @id @default(cuid())
+  userId     String?       @db.Uuid
   title      String
-  status     TaskStatus    @default(active)
+  status     ProjectStatus @default(active)
   viewMode   ProjectViewMode @default(list)
   sortOrder  Int           @default(0)
   createdAt  DateTime      @default(now())
   updatedAt  DateTime      @updatedAt
   archivedAt DateTime?
+  completedAt DateTime?
   tasks      Task[]
   sections   Section[]
+
+  @@index([userId, status])
 }
 
 model Section {
   id        String   @id @default(cuid())
+  userId    String?  @db.Uuid
   projectId String
   title     String
   sortOrder Int      @default(0)
@@ -110,11 +125,13 @@ model Section {
   tasks     Task[]
 
   @@index([projectId, sortOrder])
+  @@index([userId, projectId])
 }
 
 model Workday {
   id          String         @id @default(cuid())
-  workdayDate DateTime       @unique @db.Date
+  userId      String?        @db.Uuid
+  workdayDate DateTime       @db.Date
   status      WorkdayStatus  @default(planning)
   startedAt   DateTime?
   endedAt     DateTime?
@@ -122,10 +139,14 @@ model Workday {
   updatedAt   DateTime       @updatedAt
   items       WorkdayItem[]
   productivityEvents ProductivityEvent[]
+
+  @@unique([userId, workdayDate])
+  @@index([userId, workdayDate])
 }
 
 model WorkdayItem {
   id                String            @id @default(cuid())
+  userId            String?           @db.Uuid
   workdayId         String
   taskId            String?
   titleSnapshot     String
@@ -152,10 +173,12 @@ model WorkdayItem {
   @@index([taskId])
   @@index([carriedFromItemId])
   @@index([recurrenceRuleId])
+  @@index([userId, workdayId])
 }
 
 model FocusSession {
   id              String      @id @default(cuid())
+  userId          String?     @db.Uuid
   workdayItemId   String
   startedAt       DateTime    @default(now())
   endedAt         DateTime?
@@ -164,10 +187,12 @@ model FocusSession {
   workdayItem     WorkdayItem @relation(fields: [workdayItemId], references: [id], onDelete: Cascade)
 
   @@index([workdayItemId])
+  @@index([userId, startedAt])
 }
 
 model ProductivityEvent {
   id            String                @id @default(cuid())
+  userId        String?               @db.Uuid
   type          ProductivityEventType
   points        Int
   ruleVersion   Int                   @default(1)
@@ -182,11 +207,28 @@ model ProductivityEvent {
   @@index([type, occurredAt])
   @@index([workdayId])
   @@index([workdayItemId])
+  @@index([userId, occurredAt])
 }
 
 model ProductivityGoal {
   id                 String   @id @default("default")
+  userId             String?  @db.Uuid
   weeklyFocusMinutes Int      @default(300)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model WeeklyFocusGoal {
+  id                 String    @id @default(cuid())
+  userId             String?   @db.Uuid
+  weekStart          DateTime  @db.Date
+  weeklyFocusMinutes Int
+  achievedAt         DateTime?
+  finalFocusSeconds  Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  @@index([userId, weekStart])
 }

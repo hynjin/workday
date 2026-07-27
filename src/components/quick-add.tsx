@@ -13,7 +13,7 @@ export function QuickAdd({ projects, locale }: { projects: { id: string; title: 
   const formRef = useRef<HTMLFormElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const [destination, setDestination] = useState<Destination>("inbox");
-  const [state, action, pending] = useActionState(quickAddTaskState, { success: false, nonce: 0 });
+  const [, action, pending] = useActionState(quickAddTaskState, { success: false, nonce: 0 });
 
   const closeAndReset = () => {
     if (detailsRef.current) detailsRef.current.open = false;
@@ -37,9 +37,10 @@ export function QuickAdd({ projects, locale }: { projects: { id: string; title: 
     };
   }, []);
 
-  useEffect(() => {
-    if (state.success && state.nonce) closeAndReset();
-  }, [state.nonce, state.success]);
+  const submit = async (form: FormData) => {
+    await action(form);
+    closeAndReset();
+  };
 
   const schedules: { value: Destination; ko: string; en: string }[] = [
     { value: "inbox", ko: "일정 없음", en: "No date" },
@@ -51,7 +52,7 @@ export function QuickAdd({ projects, locale }: { projects: { id: string; title: 
   return <details className="quickAdd" ref={detailsRef}>
     <summary aria-label={locale === "ko" ? "빠른 작업 추가" : "Quick add"}>{locale === "ko" ? "빠른 추가" : "Quick add"} <kbd>Q</kbd></summary>
     <button className="quickAddBackdrop" type="button" aria-label={locale === "ko" ? "빠른 추가 닫기" : "Close quick add"} onClick={closeAndReset}/>
-    <form ref={formRef} action={action} className="quickAddForm">
+    <form ref={formRef} action={submit} className="quickAddForm">
       <div className="quickAddHeader"><div><strong>{locale === "ko" ? "새 작업" : "New task"}</strong><small>{locale === "ko" ? "어느 화면에서든 바로 수집하고 계획합니다." : "Capture and schedule from anywhere."}</small></div><button type="button" className="iconButton" onClick={closeAndReset} aria-label={locale === "ko" ? "닫기" : "Close"}>×</button></div>
       <input ref={titleRef} name="title" placeholder={locale === "ko" ? "작업 이름" : "Task name"} aria-label={locale === "ko" ? "작업 이름" : "Task name"} maxLength={120} required autoComplete="off"/>
       <label className="quickEstimate"><span>{locale === "ko" ? "예상 시간(분)" : "Estimate (min)"}</span><input type="number" name="estimatedMinutes" min="1" max="1440" placeholder="—"/></label>

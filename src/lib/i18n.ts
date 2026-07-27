@@ -8,7 +8,7 @@ export async function getLocale(): Promise<Locale> {
 
 export const copy = {
   ko: {
-    nav: ["받은편지함", "오늘", "예정", "프로젝트", "성장", "검색"],
+    nav: ["받은편지함", "일정", "예정", "프로젝트", "성장", "검색"],
     library: {
       eyebrow: "반복 작업과 날짜별 계획", title: "전체 목록 · 작업 준비", intro: "카테고리를 먼저 선택한 뒤, 그 안의 반복 작업을 관리하세요.", count: "개",
       planDate: "계획할 날짜", planHelp: "날짜를 바꾸면 선택한 작업일 목록도 함께 바뀝니다.", viewDate: "날짜 보기", today: "오늘", tomorrow: "내일",
@@ -19,7 +19,7 @@ export const copy = {
     },
   },
   en: {
-    nav: ["Inbox", "Today", "Upcoming", "Projects", "Growth", "Search"],
+    nav: ["Inbox", "Schedule", "Upcoming", "Projects", "Growth", "Search"],
     library: {
       eyebrow: "REUSABLE TASKS AND DAILY PLANS", title: "Task library · Plan", intro: "Choose a category first, then manage the reusable tasks inside it.", count: "tasks",
       planDate: "Plan for", planHelp: "Changing the date updates the selected workday list.", viewDate: "View date", today: "Today", tomorrow: "Tomorrow",

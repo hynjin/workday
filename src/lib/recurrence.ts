@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { Prisma, type RecurrenceFrequency } from "@prisma/client";
 import { prisma } from "./prisma";
+import { ownedWorkdayWhere } from "./auth";
 import { dateKeyToDate } from "./workday-date";
 
 const DAY_MS = 86_400_000;
@@ -48,14 +49,14 @@ export function occurrenceDateKeys(pattern: RecurrencePattern, fromKey: string, 
   return keys;
 }
 
-type RecurrenceClient = Prisma.TransactionClient | typeof prisma;
+type RecurrenceClient = Prisma.TransactionClient;
 type RuleWithTask = Prisma.RecurrenceRuleGetPayload<{ include: { task: true } }>;
 
 async function generateRuleOccurrences(client: RecurrenceClient, rule: RuleWithTask, fromKey: string, toKey: string) {
   const dates = occurrenceDateKeys(rule, fromKey, toKey);
   for (const key of dates) {
     const workday = await client.workday.upsert({
-      where: { workdayDate: dateKeyToDate(key) },
+      where: await ownedWorkdayWhere(dateKeyToDate(key)),
       create: { workdayDate: dateKeyToDate(key) },
       update: {},
     });
@@ -86,7 +87,7 @@ export async function generateOccurrences({ from, to }: { from: string; to: stri
   });
   for (const rule of rules) {
     await prisma.$transaction(async (tx) => {
-      await generateRuleOccurrences(tx, rule, from, to);
+      await generateRuleOccurrences(tx as unknown as Prisma.TransactionClient, rule, from, to);
       const generatedUntil = !rule.generatedUntil || rule.generatedUntil < dateKeyToDate(to)
         ? dateKeyToDate(to)
         : rule.generatedUntil;

@@ -2,11 +2,11 @@ import Link from "next/link";
 import { AppNav } from "@/components/app-nav";
 import { WorkdayCalendar } from "@/components/workday-calendar";
 import { WorkdayTaskList } from "@/components/workday-task-list";
-import { startWorkday } from "@/lib/actions";
 import { getOrCreateCurrentWorkday, getWorkdayView } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n";
 import { dateKeyToDate, formatDuration, formatWorkdayDate, getWorkdayDate } from "@/lib/workday-date";
+import { ownedWorkdayWhere } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const selectedKey = validDate(params.date) ?? todayKey;
   const selected = selectedKey === todayKey
     ? current
-    : await prisma.workday.findUnique({ where: { workdayDate: dateKeyToDate(selectedKey) } });
+    : await prisma.workday.findUnique({ where: await ownedWorkdayWhere(dateKeyToDate(selectedKey)) });
   const view = selected ? await getWorkdayView(selected.id) : {
     id: "",
     workdayDate: dateKeyToDate(selectedKey),
@@ -48,8 +48,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const isToday = selectedKey === todayKey;
   const isPast = selectedKey < todayKey;
   const isFuture = selectedKey > todayKey;
-  const actionable = isToday && view.status === "active";
-  const planning = isToday && view.status === "planning";
+  const actionable = isToday && view.status !== "completed";
+  const planning = isFuture && view.status !== "completed";
   const statusLabel = view.status === "completed" ? (locale === "ko" ? "기록" : "History") : view.status === "active" ? (locale === "ko" ? "진행 중" : "Active") : (locale === "ko" ? "준비 중" : "Planning");
 
   return <main className="shell">
@@ -61,9 +61,8 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
         <section className="summaryStats three"><div><span>{locale === "ko" ? "총 집중" : "Total focus"}</span><strong>{formatDuration(view.totalSeconds, false, locale)}</strong></div><div><span>{locale === "ko" ? "집중 세션" : "Sessions"}</span><strong>{view.totalSessions}{locale === "ko" ? "회" : ""}</strong></div><div><span>{locale === "ko" ? "완료" : "Completed"}</span><strong>{done.length}</strong></div></section>
         <section className="panel taskPanel">
           <div className="sectionTitle"><h2>{locale === "ko" ? "작업 목록" : "Tasks"}</h2><Link className="quietLink" href="/inbox">{locale === "ko" ? "받은편지함에서 계획하기" : "Plan from Inbox"} <span aria-hidden="true">→</span></Link></div>
-          <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} historical={isPast}/>
+          <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} historical={isPast} selectedDate={selectedKey}/>
           {!view.items.length && <div className="emptyState"><p>{isPast ? (locale === "ko" ? "이 날짜에는 기록된 작업이 없습니다." : "No work was recorded on this date.") : isFuture ? (locale === "ko" ? "이 날짜에는 아직 계획된 작업이 없습니다." : "Nothing is planned for this date yet.") : (locale === "ko" ? "오늘 작업이 아직 없습니다." : "There are no tasks for today yet.")}</p><Link className="button secondary" href={isFuture ? `/upcoming?date=${selectedKey}` : "/inbox"}>{locale === "ko" ? "작업 계획하기" : "Plan tasks"}</Link></div>}
-          {planning && isToday && view.items.length > 0 && <form action={startWorkday}><input type="hidden" name="workdayId" value={view.id}/><button className="button full">{locale === "ko" ? "작업일 시작" : "Start workday"}</button></form>}
         </section>
       </div>
       <aside className="hubSidebar"><WorkdayCalendar monthKey={monthKey} days={days} locale={locale}/>{!isToday && <Link className="button secondary fullWidth" href="/">{locale === "ko" ? "오늘로 돌아가기" : "Back to today"}</Link>}<div className="calendarLegend"><span><i className="todayDot"/> {locale === "ko" ? "오늘" : "Today"}</span><span><i className="recordDot"/> {locale === "ko" ? "기록 있음" : "Recorded"}</span></div></aside>
