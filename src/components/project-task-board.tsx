@@ -134,14 +134,14 @@ export function ProjectTaskBoard({ projectId, viewMode, sections, tasks, locale,
               <p>{task.estimatedMinutes ? `${locale === "ko" ? "예상" : "Est."} ${task.estimatedMinutes}${locale === "ko" ? "분" : "m"} · ` : ""}{locale === "ko" ? "집중" : "Focus"} {duration(task.focusSeconds, locale)} · {task.sessionCount}{locale === "ko" ? "회" : ""}</p>
               <TaskSchedulePicker taskId={task.id} locale={locale} scheduledItem={task.scheduledItem}/>
               <div className="cardTaskActions">
-                <form action={moveTaskToProject}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="projectId" value=""/><button className="textButton accent">{locale === "ko" ? "받은편지함" : "Inbox"}</button></form>
-                <form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form>
-                <ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요?` : `Delete “${task.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit>
                 <details className="moreMenu"><summary aria-label={locale === "ko" ? "이동 메뉴" : "Move menu"}>⋯</summary><div>
+                  <form action={moveTaskToProject}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="projectId" value=""/><button className="textButton accent">{locale === "ko" ? "Inbox로 이동" : "Move to Inbox"}</button></form>
                   <button type="button" className="textButton" disabled={!reorderEnabled || taskIndex === 0 || pending} onClick={() => runTaskMove(task.id, column.id, taskIndex - 1)}>{locale === "ko" ? "위로 이동" : "Move up"}</button>
                   <button type="button" className="textButton" disabled={!reorderEnabled || taskIndex === columnTasks.length - 1 || pending} onClick={() => runTaskMove(task.id, column.id, taskIndex + 1)}>{locale === "ko" ? "아래로 이동" : "Move down"}</button>
                   <button type="button" className="textButton" disabled={!reorderEnabled || columnIndex === 0 || pending} onClick={() => runTaskMove(task.id, columns[columnIndex - 1].id, 0)}>{locale === "ko" ? "이전 섹션" : "Previous section"}</button>
                   <button type="button" className="textButton" disabled={!reorderEnabled || columnIndex === columns.length - 1 || pending} onClick={() => runTaskMove(task.id, columns[columnIndex + 1].id, 0)}>{locale === "ko" ? "다음 섹션" : "Next section"}</button>
+                  <form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form>
+                  <ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요?` : `Delete “${task.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit>
                 </div></details>
               </div>
               <TaskPlanningFields taskId={task.id} estimatedMinutes={task.estimatedMinutes} rule={task.recurrenceRule} locale={locale}/>

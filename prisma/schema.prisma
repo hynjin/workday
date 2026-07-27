@@ -35,6 +35,11 @@ enum ProjectStatus {
   archived
 }
 
+enum AreaStatus {
+  active
+  archived
+}
+
 enum RecurrenceFrequency {
   daily
   weekly
@@ -53,6 +58,7 @@ model Task {
   id               String        @id @default(cuid())
   userId           String?       @db.Uuid
   projectId        String?
+  areaId           String?
   sectionId        String?
   parentTaskId     String?
   title            String
@@ -64,6 +70,7 @@ model Task {
   updatedAt        DateTime      @updatedAt
   archivedAt       DateTime?
   project          Project?      @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  area             Area?         @relation(fields: [areaId], references: [id], onDelete: SetNull)
   section          Section?      @relation(fields: [sectionId], references: [id], onDelete: SetNull)
   parentTask       Task?         @relation("TaskHierarchy", fields: [parentTaskId], references: [id], onDelete: Cascade)
   subtasks         Task[]        @relation("TaskHierarchy")
@@ -71,6 +78,7 @@ model Task {
   recurrenceRule   RecurrenceRule?
 
   @@index([projectId, status])
+  @@index([areaId, status])
   @@index([userId, status])
   @@index([sectionId, sortOrder])
   @@index([parentTaskId, status])
@@ -99,6 +107,7 @@ model RecurrenceRule {
 model Project {
   id         String        @id @default(cuid())
   userId     String?       @db.Uuid
+  areaId     String?
   title      String
   status     ProjectStatus @default(active)
   viewMode   ProjectViewMode @default(list)
@@ -107,8 +116,25 @@ model Project {
   updatedAt  DateTime      @updatedAt
   archivedAt DateTime?
   completedAt DateTime?
+  area       Area?         @relation(fields: [areaId], references: [id], onDelete: SetNull)
   tasks      Task[]
   sections   Section[]
+
+  @@index([userId, status])
+  @@index([areaId, status])
+}
+
+model Area {
+  id         String     @id @default(cuid())
+  userId     String?    @db.Uuid
+  title      String
+  status     AreaStatus @default(active)
+  sortOrder  Int        @default(0)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
+  archivedAt DateTime?
+  projects   Project[]
+  tasks      Task[]
 
   @@index([userId, status])
 }

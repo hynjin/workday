@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-type CalendarDay = { key: string; hasWorkday: boolean; completed: boolean; selected: boolean; today: boolean };
+type CalendarDay = { key: string; hasWorkday: boolean; selected: boolean; today: boolean };
 
 export function WorkdayCalendar({ monthKey, days, locale }: { monthKey: string; days: CalendarDay[]; locale: "ko" | "en" }) {
   const [year, month] = monthKey.split("-").map(Number);

@@ -37,12 +37,12 @@ export async function getOrCreateWorkdayForDate(key: string) {
 
 export async function getWorkdayView(id: string) {
   const workday = await prisma.workday.findUniqueOrThrow({
-    where: { id }, include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { focusSessions: true, task: { include: { project: true, parentTask: { select: { title: true } } } } } } },
+    where: { id }, include: { items: { orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { focusSessions: true, task: { include: { project: true, area: true, parentTask: { select: { title: true } } } } } } },
   });
   const now = Date.now();
   const items = workday.items.map((item) => {
     const seconds = item.focusSessions.reduce((sum, session) => sum + (session.durationSeconds ?? (session.endedAt ? 0 : Math.max(0, Math.floor((now - session.startedAt.getTime()) / 1000)))), 0);
-    return { ...item, title: item.titleSnapshot, seconds, sessionCount: item.focusSessions.length, projectTitle: item.task?.project?.title ?? null, parentTitle: item.task?.parentTask?.title ?? null, estimatedMinutes: item.task?.estimatedMinutes ?? null, focusSessions: undefined, task: undefined };
+    return { ...item, title: item.titleSnapshot, seconds, sessionCount: item.focusSessions.length, projectTitle: item.task?.project?.title ?? item.task?.area?.title ?? null, parentTitle: item.task?.parentTask?.title ?? null, estimatedMinutes: item.task?.estimatedMinutes ?? null, focusSessions: undefined, task: undefined };
   });
   return { ...workday, items, totalSeconds: items.reduce((sum, item) => sum + item.seconds, 0), totalSessions: items.reduce((sum, item) => sum + item.sessionCount, 0) };
 }

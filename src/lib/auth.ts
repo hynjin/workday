@@ -7,7 +7,22 @@ const ACCESS_COOKIE = "workday-access-token";
 const REFRESH_COOKIE = "workday-refresh-token";
 
 type AuthUser = { id: string; email?: string };
-type AuthSession = { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
+export type AuthSession = { access_token: string; refresh_token: string; expires_in: number; user: AuthUser };
+type AuthResponse = Partial<AuthSession> & { user: AuthUser };
+type AuthErrorPayload = {
+  code?: string;
+  error_code?: string;
+  error_description?: string;
+  msg?: string;
+  message?: string;
+};
+
+export class AuthRequestError extends Error {
+  constructor(public readonly code: string, message: string) {
+    super(message);
+    this.name = "AuthRequestError";
+  }
+}
 
 function authHeaders(accessToken?: string) {
   return {
@@ -44,19 +59,34 @@ export async function authenticateWithPassword(email: string, password: string) 
     body: JSON.stringify({ email, password }),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error("이메일 또는 비밀번호를 확인해 주세요.");
+  if (!response.ok) throw await authRequestError(response);
   return response.json() as Promise<AuthSession>;
 }
 
 export async function registerWithPassword(email: string, password: string) {
-  const response = await fetch(`${SUPABASE_URL}/auth/v1/signup`, {
+  const redirectTo = `${getSiteUrl()}/auth/callback`;
+  const response = await fetch(`${SUPABASE_URL}/auth/v1/signup?redirect_to=${encodeURIComponent(redirectTo)}`, {
     method: "POST",
     headers: authHeaders(),
     body: JSON.stringify({ email, password }),
     cache: "no-store",
   });
-  if (!response.ok) throw new Error("계정을 만들 수 없습니다. 입력값을 확인해 주세요.");
-  return response.json() as Promise<AuthSession>;
+  if (!response.ok) throw await authRequestError(response);
+  return response.json() as Promise<AuthResponse>;
+}
+
+function getSiteUrl() {
+  const configured = process.env.NEXT_PUBLIC_SITE_URL
+    ?? (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : undefined)
+    ?? (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : undefined)
+    ?? "http://localhost:3000";
+  return configured.replace(/\/$/, "");
+}
+
+async function authRequestError(response: Response) {
+  const payload = await response.json().catch(() => ({})) as AuthErrorPayload;
+  const code = payload.code ?? payload.error_code ?? `http_${response.status}`;
+  return new AuthRequestError(code, payload.msg ?? payload.message ?? payload.error_description ?? "Authentication failed");
 }
 
 export async function saveAuthSession(session: AuthSession) {

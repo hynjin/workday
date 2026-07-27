@@ -19,10 +19,14 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   const locale = await getLocale();
   const user = await getOptionalUser();
   let projects: { id: string; title: string }[] = [];
+  let areas: { id: string; title: string }[] = [];
   if (user) {
     const today = getWorkdayDate();
     await generateOccurrences({ from: today, to: today });
-    projects = await prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } });
+    [projects, areas] = await Promise.all([
+      prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } }),
+      prisma.area.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } }),
+    ]);
   }
-  return <html lang={locale}><body>{children}{user && <><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} locale={locale}/></>}</body></html>;
+  return <html lang={locale}><body>{children}{user && <><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} areas={areas} locale={locale}/></>}</body></html>;
 }
