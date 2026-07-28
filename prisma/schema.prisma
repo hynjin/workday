@@ -40,6 +40,18 @@ enum AreaStatus {
   archived
 }
 
+enum LocalImportStatus {
+  processing
+  completed
+  failed
+}
+
+enum LocalEntityType {
+  task
+  workdayItem
+  focusSession
+}
+
 enum RecurrenceFrequency {
   daily
   weekly
@@ -262,4 +274,35 @@ model WeeklyFocusGoal {
   updatedAt          DateTime  @updatedAt
 
   @@index([userId, weekStart])
+}
+
+model LocalImportBatch {
+  id          String            @id @default(cuid())
+  userId      String            @db.Uuid
+  deviceId    String
+  status      LocalImportStatus @default(processing)
+  counts      Json?
+  error       String?
+  createdAt   DateTime          @default(now())
+  completedAt DateTime?
+  records     ImportedLocalRecord[]
+
+  @@index([userId, createdAt])
+  @@index([userId, deviceId])
+}
+
+model ImportedLocalRecord {
+  id         String          @id @default(cuid())
+  userId     String          @db.Uuid
+  deviceId   String
+  localId    String
+  entityType LocalEntityType
+  cloudId    String
+  batchId    String
+  importedAt DateTime        @default(now())
+  batch      LocalImportBatch @relation(fields: [batchId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, deviceId, entityType, localId])
+  @@index([batchId])
+  @@index([userId, importedAt])
 }
