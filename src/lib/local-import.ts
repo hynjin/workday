@@ -102,7 +102,8 @@ export async function importLocalBundle(input: unknown): Promise<LocalImportResu
         const session = await tx.focusSession.create({
           data: {
             userId, workdayItemId, startedAt: new Date(local.startedAt), endedAt: local.endedAt ? new Date(local.endedAt) : null,
-            durationSeconds: local.durationSeconds, taskTitleSnapshot: item.titleSnapshot, createdAt: new Date(local.createdAt),
+            durationSeconds: local.durationSeconds, taskTitleSnapshot: item.titleSnapshot,
+            taskIdSnapshot: item.taskId, createdAt: new Date(local.createdAt),
           },
         });
         await tx.importedLocalRecord.create({

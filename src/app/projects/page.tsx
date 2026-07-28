@@ -4,8 +4,9 @@ import { ConfirmSubmit, EditableText } from "@/components/editable-text";
 import { ProjectTaskBoard } from "@/components/project-task-board";
 import { ProjectRailLinks } from "@/components/project-rail-links";
 import {
-  archiveProject, completeProject, createProject, createSection, createTask, deleteProject, deleteTask,
+  archiveProject, completeProject, createAreaForProject, createProject, createSection, createTask, deleteProject, deleteTask,
   reopenProject, restoreProject, restoreTask, setProjectViewMode, undoMoveTaskToInbox, updateProject,
+  updateProjectArea,
 } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
@@ -99,6 +100,24 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         {selected ? <>
         <div className="panel projectTasks">
           <header className="taskWorkspaceHeader"><div><p className="workspaceLabel">{locale === "ko" ? "프로젝트 컨테이너 · Task와 Subtask를 날짜에 실행" : "PROJECT CONTAINER · Schedule tasks and subtasks"}</p><EditableText action={updateProject} idName="projectId" id={selected.id} value={selected.title} label={locale === "ko" ? "프로젝트 이름 수정" : "Rename project"} className="categoryName"/>{selected.area && <Link className="locationBadge area" href={`/areas?area=${selected.area.id}`}>{selected.area.title}</Link>}<p>{locale === "ko" ? "프로젝트 자체가 아니라 Task와 선택적인 Subtask가 오늘 또는 다른 날짜의 실행 단위가 됩니다." : "Tasks and optional subtasks—not the project itself—are the units you schedule and execute."}</p></div><div className="libraryActions"><form action={completeProject}><input type="hidden" name="projectId" value={selected.id}/><button className="textButton accent">{locale === "ko" ? "프로젝트 완료" : "Complete project"}</button></form><form action={archiveProject}><input type="hidden" name="projectId" value={selected.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form><ConfirmSubmit action={deleteProject} fields={{ projectId: selected.id }} message={locale === "ko" ? `‘${selected.title}’ 프로젝트를 삭제할까요? 작업은 Inbox로 이동합니다.` : `Delete “${selected.title}”? Its tasks will move to Inbox.`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></header>
+          <details className="projectAreaSettings">
+            <summary>{locale === "ko" ? "Area 설정" : "Area settings"} · {selected.area?.title ?? (locale === "ko" ? "Area 없음" : "No Area")}</summary>
+            <div>
+              <form action={updateProjectArea} className="rowForm">
+                <input type="hidden" name="projectId" value={selected.id}/>
+                <select name="areaId" defaultValue={selected.area?.id ?? ""}>
+                  <option value="">{locale === "ko" ? "Area 없음" : "No Area"}</option>
+                  {areas.map(area => <option value={area.id} key={area.id}>{area.title}</option>)}
+                </select>
+                <button className="button secondary">{locale === "ko" ? "변경" : "Update"}</button>
+              </form>
+              <form action={createAreaForProject} className="rowForm">
+                <input type="hidden" name="projectId" value={selected.id}/>
+                <input name="title" required maxLength={120} placeholder={locale === "ko" ? "새 Area 이름" : "New Area name"}/>
+                <button className="button secondary">{locale === "ko" ? "만들고 지정" : "Create & assign"}</button>
+              </form>
+            </div>
+          </details>
           <div className="projectToolbar">
             <div className="viewSwitch" aria-label={locale === "ko" ? "프로젝트 보기 방식" : "Project view"}>
               <form action={setProjectViewMode}><input type="hidden" name="projectId" value={selected.id}/><input type="hidden" name="viewMode" value="list"/><button className={selected.viewMode === "list" ? "active" : ""}>{locale === "ko" ? "목록" : "List"}</button></form>

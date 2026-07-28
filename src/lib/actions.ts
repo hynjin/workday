@@ -6,7 +6,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "./prisma";
 import { generateOccurrences } from "./recurrence";
-import { dateKeyToDate, getWorkdayDate, nextDate } from "./workday-date";
+import { dateKeyToDate, getWorkdayDate, nextDate, WORKDAY_TIME_ZONE } from "./workday-date";
 import { ownedWorkdayWhere } from "./auth";
 
 const titleSchema = z.string().trim().min(1, "제목을 입력해 주세요.").max(120, "제목은 120자 이하여야 합니다.");
@@ -78,6 +78,25 @@ export async function updateProject(form: FormData) {
   const duplicate = await prisma.project.findFirst({ where: { title: { equals: title, mode: "insensitive" }, NOT: { id } } });
   if (duplicate) throw new Error("같은 이름의 프로젝트가 이미 있습니다.");
   await prisma.project.update({ where: { id }, data: { title } });
+  refreshWorkspace();
+}
+
+export async function updateProjectArea(form: FormData) {
+  const projectId = idFrom(form, "projectId");
+  const areaId = optionalIdFrom(form, "areaId");
+  if (areaId) await prisma.area.findFirstOrThrow({ where: { id: areaId, status: "active" } });
+  await prisma.project.update({ where: { id: projectId }, data: { areaId: areaId ?? null } });
+  refreshWorkspace();
+}
+
+export async function createAreaForProject(form: FormData) {
+  const projectId = idFrom(form, "projectId");
+  const title = titleFrom(form);
+  const existing = await prisma.area.findFirst({ where: { title: { equals: title, mode: "insensitive" } } });
+  const area = existing
+    ? await prisma.area.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } })
+    : await prisma.area.create({ data: { title } });
+  await prisma.project.update({ where: { id: projectId }, data: { areaId: area.id } });
   refreshWorkspace();
 }
 
@@ -748,6 +767,9 @@ export async function startFocus(form: FormData) {
         taskTitleSnapshot: item.titleSnapshot,
         projectTitleSnapshot: item.task?.project?.title ?? null,
         areaTitleSnapshot: item.task?.project?.area?.title ?? item.task?.area?.title ?? null,
+        taskIdSnapshot: item.taskId,
+        projectIdSnapshot: item.task?.projectId ?? null,
+        areaIdSnapshot: item.task?.project?.areaId ?? item.task?.areaId ?? null,
       },
     });
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
@@ -773,14 +795,14 @@ export async function updateWeeklyFocusGoal(form: FormData) {
   currentWeekStart.setUTCDate(currentWeekStart.getUTCDate() - ((currentWeekStart.getUTCDay() + 6) % 7));
   if (weekStart.getTime() !== currentWeekStart.getTime()) throw new Error("현재 주의 목표만 변경할 수 있습니다.");
   await prisma.$transaction(async (tx) => {
-    await tx.productivityGoal.upsert({
-      where: { id: "default" },
-      create: { weeklyFocusMinutes },
-      update: { weeklyFocusMinutes },
+    const existing = await tx.weeklyFocusGoal.findFirst({ where: { weekStart } });
+    if (existing) await tx.weeklyFocusGoal.update({
+      where: { id: existing.id },
+      data: { weeklyFocusMinutes, timezone: WORKDAY_TIME_ZONE },
     });
-    const existing = await tx.weeklyFocusGoal.findFirst({ where: { userId: null, weekStart } });
-    if (existing) await tx.weeklyFocusGoal.update({ where: { id: existing.id }, data: { weeklyFocusMinutes } });
-    else await tx.weeklyFocusGoal.create({ data: { weekStart, weeklyFocusMinutes } });
+    else await tx.weeklyFocusGoal.create({
+      data: { weekStart, weeklyFocusMinutes, timezone: WORKDAY_TIME_ZONE },
+    });
   });
   revalidatePath("/growth");
 }

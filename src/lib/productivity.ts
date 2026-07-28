@@ -101,15 +101,10 @@ export async function recordFocusCompletion(tx: Transaction, sessionId: string, 
     where: { id: sessionId },
     select: { workdayItemId: true, workdayItem: { select: { workdayId: true, workday: { select: { workdayDate: true } } } } },
   });
-  await tx.productivityEvent.createMany({
-    data: [event("focus_completed", `focus_completed:${sessionId}`, session.workdayItem.workdayId, session.workdayItemId, occurredAt)],
-    skipDuplicates: true,
-  });
-
   const start = weekStart(session.workdayItem.workday.workdayDate);
   const end = nextUtcDate(start, 7);
   const [goal, focus] = await Promise.all([
-    tx.productivityGoal.upsert({ where: { id: "default" }, create: {}, update: {} }),
+    tx.weeklyFocusGoal.findFirst({ where: { weekStart: start } }),
     tx.focusSession.aggregate({
       where: {
         endedAt: { not: null },
@@ -118,10 +113,10 @@ export async function recordFocusCompletion(tx: Transaction, sessionId: string, 
       _sum: { durationSeconds: true },
     }),
   ]);
-  if ((focus._sum.durationSeconds ?? 0) < goal.weeklyFocusMinutes * 60) return;
-  const weekKey = dateKey(start);
-  await tx.productivityEvent.createMany({
-    data: [event("weekly_goal_reached", `weekly_goal_reached:${weekKey}`, session.workdayItem.workdayId, null, occurredAt)],
-    skipDuplicates: true,
+  const finalFocusSeconds = focus._sum.durationSeconds ?? 0;
+  if (!goal || finalFocusSeconds < goal.weeklyFocusMinutes * 60 || goal.achievedAt) return;
+  await tx.weeklyFocusGoal.update({
+    where: { id: goal.id },
+    data: { achievedAt: occurredAt, finalFocusSeconds },
   });
 }

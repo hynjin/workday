@@ -226,11 +226,17 @@ model FocusSession {
   taskTitleSnapshot String?
   projectTitleSnapshot String?
   areaTitleSnapshot String?
+  taskIdSnapshot      String?
+  projectIdSnapshot   String?
+  areaIdSnapshot      String?
   createdAt       DateTime    @default(now())
   workdayItem     WorkdayItem @relation(fields: [workdayItemId], references: [id], onDelete: Cascade)
 
   @@index([workdayItemId])
   @@index([userId, startedAt])
+  @@index([userId, taskIdSnapshot])
+  @@index([userId, projectIdSnapshot])
+  @@index([userId, areaIdSnapshot])
 }
 
 model ProductivityEvent {
@@ -268,6 +274,7 @@ model WeeklyFocusGoal {
   userId             String?   @db.Uuid
   weekStart          DateTime  @db.Date
   weeklyFocusMinutes Int
+  timezone           String    @default("America/Toronto")
   achievedAt         DateTime?
   finalFocusSeconds  Int?
   createdAt          DateTime  @default(now())
