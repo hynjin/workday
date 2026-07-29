@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { Locale } from "@/lib/i18n";
+import { WorkdayIcon } from "@/components/workday-icon";
 
 export function LanguageToggle({ locale }: { locale: Locale }) {
   const router = useRouter();
@@ -35,13 +36,13 @@ export function LanguageToggle({ locale }: { locale: Locale }) {
     setOpen(false);
     router.refresh();
   };
-  return <div className="languageToggle" ref={rootRef}>
-    {open && <div className="languageMenu" aria-label="Language">
-      <button type="button" className={locale === "ko" ? "active" : ""} onClick={() => change("ko")}>한국어</button>
-      <button type="button" className={locale === "en" ? "active" : ""} onClick={() => change("en")}>English</button>
+  return <div className="wd-language" ref={rootRef}>
+    {open && <div className="wd-language-menu" aria-label="Language">
+      <button type="button" className={locale === "ko" ? "is-active" : ""} onClick={() => change("ko")}>한국어</button>
+      <button type="button" className={locale === "en" ? "is-active" : ""} onClick={() => change("en")}>English</button>
     </div>}
-    <button className="navUtility languageTrigger" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <svg width="18" height="18" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.8"/><path d="M3 12h18M12 3c2.3 2.5 3.5 5.5 3.5 9S14.3 18.5 12 21C9.7 18.5 8.5 15.5 8.5 12S9.7 5.5 12 3Z" stroke="currentColor" strokeWidth="1.8"/></svg>
+    <button className="wd-nav-utility" type="button" aria-expanded={open} onClick={() => setOpen(value => !value)}>
+      <WorkdayIcon name="language" size={16}/>
       {locale === "ko" ? "한국어" : "English"}
     </button>
   </div>;

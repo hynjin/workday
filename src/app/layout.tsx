@@ -11,6 +11,7 @@ import { PopoverCloser } from "@/components/popover-closer";
 import { LocalBackupPrompt } from "@/components/local-backup-prompt";
 import { RailCollapseController } from "@/components/rail-collapse-controller";
 import "./globals.css";
+import "./workday.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();

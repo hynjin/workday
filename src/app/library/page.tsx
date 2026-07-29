@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
 
-export default function LibraryRedirect() {
-  redirect("/projects");
+export default function LibraryPage() {
+  redirect("/tasks");
 }

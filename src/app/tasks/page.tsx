@@ -1,13 +1,14 @@
 import Link from "next/link";
 import { Prisma } from "@prisma/client";
 import { AppNav } from "@/components/app-nav";
-import { ConfirmSubmit, EditableText } from "@/components/editable-text";
+import { ConfirmSubmit } from "@/components/editable-text";
 import { TaskSchedulePicker } from "@/components/task-schedule-picker";
-import { archiveTask, deleteTask, moveTaskToArea, moveTaskToProject, updateTask } from "@/lib/actions";
+import { archiveTask, deleteTask } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { dateKeyToDate, getWorkdayDate } from "@/lib/workday-date";
 import { OpenQuickAddButton } from "@/components/open-quick-add-button";
+import { TaskEditDialog } from "@/components/task-edit-dialog";
 
 export const dynamic = "force-dynamic";
 
@@ -36,6 +37,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         project: { select: { id: true, title: true, color: true } },
         area: { select: { id: true, title: true, color: true } },
         parentTask: { select: { title: true } },
+        recurrenceRule: { select: { frequency: true } },
         items: {
           where: filter === "completed"
             ? { status: "completed" }
@@ -45,8 +47,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
         },
       },
     }),
-    prisma.project.findMany({ where: { status: "active" }, orderBy: { title: "asc" }, select: { id: true, title: true } }),
-    prisma.area.findMany({ where: { status: "active" }, orderBy: { title: "asc" }, select: { id: true, title: true } }),
+    prisma.project.findMany({ where: { status: "active" }, orderBy: { title: "asc" }, select: { id: true, title: true, color: true } }),
+    prisma.area.findMany({ where: { status: "active" }, orderBy: { title: "asc" }, select: { id: true, title: true, color: true } }),
   ]);
 
   const label = {
@@ -56,30 +58,28 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     unscheduled: locale === "ko" ? "미정" : "Unscheduled",
     completed: locale === "ko" ? "완료 기록" : "Completed",
   };
-  return <main className="shell"><AppNav/>
-    <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "모든 작업" : "ALL TASKS"}</p><h1>{locale === "ko" ? "작업" : "Tasks"}</h1><p className="lede">{locale === "ko" ? "소속과 일정 상태에 따라 필요한 작업을 찾아보세요." : "Find tasks by location and schedule."}</p></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
-    <nav className="taskFilters" aria-label={locale === "ko" ? "작업 필터" : "Task filters"}>{filters.map(item => <Link className={item === filter ? "active" : ""} href={`/tasks?filter=${item}`} key={item}>{label[item]}</Link>)}</nav>
-    <section className="panel taskDirectory">
+  return <main className="wd-app"><AppNav/><section className="wd-main">
+    <header className="wd-page-head"><div><span className="wd-eyebrow">{locale === "ko" ? "모든 작업" : "ALL TASKS"}</span><h1>{locale === "ko" ? "작업" : "Tasks"}</h1><span className="wd-muted">{locale === "ko" ? "소속과 일정 상태에 따라 필요한 작업을 찾아보세요." : "Find tasks by location and schedule."}</span></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
+    <nav className="wd-tabs" aria-label={locale === "ko" ? "작업 필터" : "Task filters"}>{filters.map(item => <Link className={item === filter ? "is-active" : ""} href={`/tasks?filter=${item}`} key={item}>{label[item]}</Link>)}</nav>
+    <section className="wd-directory">
       {tasks.map(task => {
         const item = task.items[0];
         const scheduledItem = item && item.status === "planned" ? { id: item.id, date: item.workday.workdayDate.toISOString().slice(0, 10) } : null;
         const location = task.project?.title ?? task.area?.title ?? (locale === "ko" ? "수집함" : "Inbox");
         const locationColor = task.project?.color ?? task.area?.color ?? "sky";
-        return <article className="taskDirectoryRow" key={task.id}>
-          <div className="taskDirectoryMain"><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={locale === "ko" ? "작업 이름 수정" : "Rename task"}/><div className="taskMeta"><span className="locationBadge"><i className={`colorDot ${locationColor}`}/>{location}</span>{task.parentTask && <span>{locale === "ko" ? "하위 작업 · " : "Subtask · "}{task.parentTask.title}</span>}{filter === "completed" && item && <time>{item.workday.workdayDate.toISOString().slice(0, 10)}</time>}</div></div>
-          <div className="taskDirectoryActions">
+        return <article className="wd-directory-row" key={task.id}>
+          <div className="wd-directory-copy"><strong>{task.title}</strong><div><span><i className={`wd-dot ${locationColor}`}/>{location}</span>{task.parentTask && <span>{locale === "ko" ? "하위 작업 · " : "Subtask · "}{task.parentTask.title}</span>}{filter === "completed" && item && <time>{item.workday.workdayDate.toISOString().slice(0, 10)}</time>}</div></div>
+          <div className="wd-directory-actions">
             {filter !== "completed" && <TaskSchedulePicker taskId={task.id} locale={locale} compact scheduledItem={scheduledItem}/>}
-            <details className="moreMenu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}>⋯</summary><div>
-              {(task.projectId || task.areaId) && <form action={moveTaskToArea}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="areaId" value=""/><button className="textButton">Inbox로 이동</button></form>}
-              {areas.map(area => <form action={moveTaskToArea} key={area.id}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="areaId" value={area.id}/><button className="textButton">{locale === "ko" ? `${area.title} Area로 이동` : `Move to Area: ${area.title}`}</button></form>)}
-              {projects.map(project => <form action={moveTaskToProject} key={project.id}><input type="hidden" name="taskId" value={task.id}/><input type="hidden" name="projectId" value={project.id}/><button className="textButton">{locale === "ko" ? `${project.title} 프로젝트로 이동` : `Move to Project: ${project.title}`}</button></form>)}
+            <details className="wd-more-menu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}>•••</summary><div>
+              <TaskEditDialog task={{ id: task.id, title: task.title, priority: task.priority, estimatedMinutes: task.estimatedMinutes, projectId: task.projectId, areaId: task.areaId, scheduledItem, repeat: task.recurrenceRule?.frequency ?? "none" }} projects={projects} areas={areas} locale={locale}/>
               <form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form>
               <ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요?` : `Delete “${task.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit>
             </div></details>
           </div>
         </article>;
       })}
-      {!tasks.length && <div className="emptyState"><p>{locale === "ko" ? `${label[filter]}에 표시할 작업이 없습니다.` : `There are no tasks in ${label[filter]}.`}</p></div>}
+      {!tasks.length && <div className="wd-empty"><p>{locale === "ko" ? `${label[filter]}에 표시할 작업이 없습니다.` : `There are no tasks in ${label[filter]}.`}</p></div>}
     </section>
-  </main>;
+  </section></main>;
 }

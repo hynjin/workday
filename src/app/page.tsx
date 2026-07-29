@@ -7,8 +7,8 @@ import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n";
 import { dateKeyToDate, formatDuration, formatWorkdayDate, getWorkdayDate } from "@/lib/workday-date";
 import { ownedWorkdayWhere } from "@/lib/auth";
-import { TodayTaskAdder } from "@/components/today-task-adder";
 import { undoRemoveWorkdayItem } from "@/lib/actions";
+import { OpenQuickAddButton } from "@/components/open-quick-add-button";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +33,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
     totalSessions: 0,
   };
   const activeSession = await prisma.focusSession.findFirst({ where: { endedAt: null }, select: { id: true } });
-  if (activeSession && selectedKey === todayKey) return <main className="shell centered"><p className="eyebrow">{locale === "ko" ? "진행 중인 세션" : "ACTIVE SESSION"}</p><h1>{locale === "ko" ? "집중을 이어가세요" : "Keep your focus going"}</h1><Link className="button" href={`/focus/${activeSession.id}`}>{locale === "ko" ? "타이머로 돌아가기" : "Return to timer"}</Link></main>;
+  if (activeSession && selectedKey === todayKey) return <main className="wd-app"><AppNav/><section className="wd-main wd-centered"><span className="wd-eyebrow">{locale === "ko" ? "진행 중인 세션" : "ACTIVE SESSION"}</span><h1>{locale === "ko" ? "집중을 이어가세요" : "Keep your focus going"}</h1><Link className="wd-button is-primary" href={`/focus/${activeSession.id}`}>{locale === "ko" ? "타이머로 돌아가기" : "Return to timer"}</Link></section></main>;
 
   const monthKey = /^\d{4}-\d{2}$/.test(params.month ?? "") ? params.month! : selectedKey.slice(0, 7);
   const monthStart = dateKeyToDate(`${monthKey}-01`);
@@ -60,30 +60,27 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const isFuture = selectedKey > todayKey;
   const actionable = isToday && view.status !== "completed";
   const planning = isFuture && view.status !== "completed";
-  const statusLabel = view.status === "completed" ? (locale === "ko" ? "기록" : "History") : view.status === "active" ? (locale === "ko" ? "진행 중" : "Active") : (locale === "ko" ? "준비 중" : "Planning");
-  const todayCandidates = isToday ? await prisma.task.findMany({
-    where: { status: "active", OR: [{ items: { none: { workdayId: view.id } } }, { items: { some: { workdayId: view.id, dismissedAt: { not: null } } } }] },
-    orderBy: [{ updatedAt: "desc" }, { title: "asc" }],
-    take: 80,
-    include: { project: { select: { title: true } }, area: { select: { title: true } }, parentTask: { select: { title: true } } },
-  }) : [];
-
-  return <main className="shell">
+  const [taskProjects, taskAreas] = await Promise.all([
+    prisma.project.findMany({ where:{ status:"active" }, orderBy:{ title:"asc" }, select:{ id:true,title:true,color:true } }),
+    prisma.area.findMany({ where:{ status:"active" }, orderBy:{ title:"asc" }, select:{ id:true,title:true,color:true } }),
+  ]);
+  return <main className="wd-app">
     <AppNav />
-    <header className="pageHeader"><div><p className="eyebrow">{formatWorkdayDate(view.workdayDate, locale)}</p><h1>{isToday ? (locale === "ko" ? "오늘의 일정" : "Today’s schedule") : isPast ? (locale === "ko" ? "일정 기록" : "Schedule record") : (locale === "ko" ? "일정 계획" : "Schedule plan")}</h1><p className="lede">{locale === "ko" ? "작업을 누르면 바로 집중을 시작해요." : "Select a task to start focusing."}</p></div><span className="status">{statusLabel}</span></header>
+    <section className="wd-main">
+      <header className="wd-page-head"><div><span className="wd-eyebrow">{formatWorkdayDate(view.workdayDate, locale)}</span><h1>{isToday ? (locale === "ko" ? "오늘의 일정" : "Today’s schedule") : isPast ? (locale === "ko" ? "일정 기록" : "Schedule record") : (locale === "ko" ? "일정 계획" : "Schedule plan")}</h1><span className="wd-muted">{locale === "ko" ? "작업을 누르면 바로 집중을 시작해요." : "Select a task to start focusing."}</span></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
 
-    <div className="workdayHub">
-      <div className="workdayMain">
-        {params.removed && <aside className="actionNotice" role="status"><span>{locale === "ko" ? "이 날짜의 작업에서 제거했습니다. 작업 자체와 기록은 유지됩니다." : "Removed from this date. The task and its history are preserved."}</span><form action={undoRemoveWorkdayItem}><input type="hidden" name="itemId" value={params.removed}/><button className="textButton accent">{locale === "ko" ? "실행 취소" : "Undo"}</button></form></aside>}
-        <section className="dailyFlow"><div><strong>{locale === "ko" ? "오늘의 흐름" : "Today’s flow"}</strong><span>{locale === "ko" ? `${view.items.length}개 중 ${done.length}개 완료 · 총 집중 ${formatDuration(view.totalSeconds, false, locale)}` : `${done.length} of ${view.items.length} complete · ${formatDuration(view.totalSeconds, false, locale)} focused`}</span></div><div className="dailyProgress"><i style={{ width: `${view.items.length ? Math.round(done.length / view.items.length * 100) : 0}%` }}/></div></section>
-        <section className="panel taskPanel">
-          <div className="sectionTitle"><h2>{locale === "ko" ? "이 날짜의 작업" : "Scheduled tasks"}</h2></div>
-          <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} historical={isPast} selectedDate={selectedKey}/>
-          {isToday && <TodayTaskAdder workdayId={view.id} locale={locale} candidates={todayCandidates.map(task => ({ id: task.id, title: task.title, location: task.project?.title ?? task.area?.title ?? task.parentTask?.title ?? "Inbox" }))}/>}
-          {!view.items.length && <div className="emptyState"><p>{isPast ? (locale === "ko" ? "이 날짜에는 기록된 작업이 없습니다." : "No work was recorded on this date.") : isFuture ? (locale === "ko" ? "이 날짜에는 아직 계획된 작업이 없습니다." : "Nothing is planned for this date yet.") : (locale === "ko" ? "오늘 작업이 아직 없습니다." : "There are no tasks for today yet.")}</p><Link className="button secondary" href="/tasks">{locale === "ko" ? "작업 계획하기" : "Plan tasks"}</Link></div>}
+      <div className="wd-schedule-layout">
+        <div className="wd-schedule-main">
+        {params.removed && <aside className="wd-notice" role="status"><span>{locale === "ko" ? "이 날짜의 작업에서 제거했습니다. 작업 자체와 기록은 유지됩니다." : "Removed from this date. The task and its history are preserved."}</span><form action={undoRemoveWorkdayItem}><input type="hidden" name="itemId" value={params.removed}/><button className="wd-text-button">{locale === "ko" ? "실행 취소" : "Undo"}</button></form></aside>}
+        <section className="wd-day-summary"><div><strong>{locale === "ko" ? "오늘의 흐름" : "Today’s flow"}</strong><span>{locale === "ko" ? `${view.items.length}개 중 ${done.length}개 완료 · 총 집중 ${formatDuration(view.totalSeconds, false, locale)}` : `${done.length} of ${view.items.length} complete · ${formatDuration(view.totalSeconds, false, locale)} focused`}</span></div><div className="wd-day-progress"><i style={{ width: `${view.items.length ? Math.round(done.length / view.items.length * 100) : 0}%` }}/></div></section>
+        <section className="wd-task-section">
+          <div className="wd-section-head"><h2>{locale === "ko" ? "이 날짜의 작업" : "Scheduled tasks"}</h2></div>
+          <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} selectedDate={selectedKey} projects={taskProjects} areas={taskAreas}/>
+          {!view.items.length && <div className="wd-empty"><p>{isPast ? (locale === "ko" ? "이 날짜에는 기록된 작업이 없습니다." : "No work was recorded on this date.") : isFuture ? (locale === "ko" ? "이 날짜에는 아직 계획된 작업이 없습니다." : "Nothing is planned for this date yet.") : (locale === "ko" ? "오늘 작업이 아직 없습니다." : "There are no tasks for today yet.")}</p><Link className="wd-button" href="/tasks">{locale === "ko" ? "작업 계획하기" : "Plan tasks"}</Link></div>}
         </section>
       </div>
-      <aside className="hubSidebar"><WorkdayCalendar monthKey={monthKey} days={days} locale={locale}/>{!isToday && <Link className="button secondary fullWidth" href="/">{locale === "ko" ? "오늘로 돌아가기" : "Back to today"}</Link>}<div className="calendarLegend"><span><i className="todayDot"/> {locale === "ko" ? "오늘" : "Today"}</span><span><i className="recordDot"/> {locale === "ko" ? "기록 있음" : "Recorded"}</span></div></aside>
+      <aside className="wd-calendar-side"><WorkdayCalendar monthKey={monthKey} days={days} locale={locale}/>{!isToday && <Link className="wd-button" href="/">{locale === "ko" ? "오늘로 돌아가기" : "Back to today"}</Link>}<div className="wd-calendar-legend"><span><i className="is-today"/> {locale === "ko" ? "오늘" : "Today"}</span><span><i className="is-recorded"/> {locale === "ko" ? "기록 있음" : "Recorded"}</span></div></aside>
     </div>
+    </section>
   </main>;
 }

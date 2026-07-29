@@ -7,7 +7,7 @@ export function RailCollapseController() {
     const toggle = (event: MouseEvent) => {
       const button = (event.target as HTMLElement).closest<HTMLButtonElement>(".railCollapse");
       if (!button) return;
-      const workspace = button.closest(".projectsWorkspace");
+      const workspace = button.closest(".wd-workspace");
       const collapsed = !workspace?.classList.contains("railCollapsed");
       workspace?.classList.toggle("railCollapsed", collapsed);
       button.textContent = collapsed ? "›" : "‹";
