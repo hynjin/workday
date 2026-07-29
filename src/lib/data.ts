@@ -37,7 +37,7 @@ export async function getOrCreateWorkdayForDate(key: string) {
 
 export async function getWorkdayView(id: string) {
   const workday = await prisma.workday.findUniqueOrThrow({
-    where: { id }, include: { items: { where: { dismissedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { focusSessions: true, task: { include: { project: true, area: true, parentTask: { select: { title: true } } } } } } },
+    where: { id }, include: { items: { where: { dismissedAt: null }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], include: { focusSessions: true, task: { include: { project: true, area: true, recurrenceRule: true, parentTask: { select: { title: true } } } } } } },
   });
   const now = Date.now();
   const items = workday.items.map((item) => {
@@ -52,6 +52,9 @@ export async function getWorkdayView(id: string) {
       priority: item.task?.priority ?? "normal",
       parentTitle: item.task?.parentTask?.title ?? null,
       estimatedMinutes: item.task?.estimatedMinutes ?? null,
+      projectId: item.task?.projectId ?? null,
+      areaId: item.task?.areaId ?? null,
+      repeat: (item.task?.recurrenceRule?.frequency ?? "none") as "none" | "daily" | "weekly" | "monthly",
       focusSessions: undefined,
       task: undefined,
     };

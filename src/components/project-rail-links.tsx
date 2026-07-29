@@ -13,5 +13,5 @@ export function ProjectRailLinks({ projects, selectedId }: { projects: { id: str
     setNextId(id);
     startTransition(() => router.push(`/projects?project=${id}`, { scroll: false }));
   };
-  return <nav aria-busy={pending}>{projects.map(project => <a className={(nextId ?? selectedId) === project.id ? "active" : ""} href={`/projects?project=${project.id}`} onClick={event => select(event, project.id)} key={project.id}><span><i className={`colorDot ${project.color}`}/>{project.title}</span><small>{pending && nextId === project.id ? "…" : project.taskCount}</small></a>)}</nav>;
+  return <nav aria-busy={pending}>{projects.map(project => <a className={(nextId ?? selectedId) === project.id ? "is-active" : ""} href={`/projects?project=${project.id}`} onClick={event => select(event, project.id)} key={project.id}><span><i className={`wd-dot ${project.color}`}/><b>{project.title}</b></span><small>{pending && nextId === project.id ? "…" : project.taskCount}</small></a>)}</nav>;
 }

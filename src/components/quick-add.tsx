@@ -4,6 +4,7 @@ import { useActionState, useEffect, useMemo, useRef, useState } from "react";
 import { quickAddTaskState } from "@/lib/actions";
 import type { Locale } from "@/lib/i18n";
 import { getWorkdayDate } from "@/lib/workday-date";
+import { DateCalendarPicker } from "@/components/date-calendar-picker";
 
 type Destination = "inbox" | "date";
 type Priority = "low" | "normal" | "high";
@@ -49,7 +50,9 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
   };
 
   useEffect(() => {
-    const open = () => {
+    const open = (event: Event) => {
+      const nextLocation = (event as CustomEvent<{ location?: string }>).detail?.location;
+      if (nextLocation) setLocation(nextLocation);
       if (detailsRef.current) detailsRef.current.open = true;
       requestAnimationFrame(() => titleRef.current?.focus());
     };
@@ -96,14 +99,14 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
         <input type="hidden" name="projectId" value={location.startsWith("project:") ? location.slice(8) : ""}/>
 
         <div className="quickField"><div className="quickFieldHead"><span className="quickLabel">{locale === "ko" ? "예상 시간" : "Estimate"}</span><label className="quickSwitch"><input type="checkbox" checked={estimateEnabled} onChange={event => setEstimateEnabled(event.target.checked)}/><span/><b>{estimateEnabled ? (locale === "ko" ? "시간 설정" : "Set time") : (locale === "ko" ? "설정 안 함" : "Not set")}</b></label></div>
-          <div className={`quickTime ${estimateEnabled ? "" : "disabled"}`}><div className="quickDuration"><label><input type="number" min="0" max="23" value={hours} onChange={event => { setHours(Number(event.target.value)); setPreset(-1); }}/><span>{locale === "ko" ? "시간" : "hr"}</span></label><label><input type="number" min="0" max="59" value={minutes} onChange={event => { setMinutes(Number(event.target.value)); setPreset(-1); }}/><span>{locale === "ko" ? "분" : "min"}</span></label></div><div className="quickPresets">{[15,30,45,60].map(value => <button type="button" className={preset === value ? "active" : ""} onClick={() => choosePreset(value)} key={value}>{value === 60 ? (locale === "ko" ? "1시간" : "1 hr") : `${value}${locale === "ko" ? "분" : " min"}`}</button>)}</div></div>
+          {estimateEnabled && <div className="quickTime"><div className="quickDuration"><label><input type="number" min="0" max="23" value={hours} onChange={event => { setHours(Number(event.target.value)); setPreset(-1); }}/><span>{locale === "ko" ? "시간" : "hr"}</span></label><label><input type="number" min="0" max="59" value={minutes} onChange={event => { setMinutes(Number(event.target.value)); setPreset(-1); }}/><span>{locale === "ko" ? "분" : "min"}</span></label></div><div className="quickPresets">{[15,30,45,60].map(value => <button type="button" className={preset === value ? "active" : ""} onClick={() => choosePreset(value)} key={value}>{value === 60 ? (locale === "ko" ? "1시간" : "1 hr") : `${value}${locale === "ko" ? "분" : " min"}`}</button>)}</div></div>}
           <input type="hidden" name="estimatedMinutes" value={estimatedMinutes}/>
         </div>
 
         <div className="quickField"><span className="quickLabel">{locale === "ko" ? "우선순위" : "Priority"}</span><div className="quickPriority">{(["low","normal","high"] as Priority[]).map(level => <label className={`${level} ${priority === level ? "active" : ""}`} key={level}><input type="radio" name="priority" value={level} checked={priority === level} onChange={() => setPriority(level)}/><span>{level === "low" ? (locale === "ko" ? "낮음" : "Low") : level === "normal" ? (locale === "ko" ? "보통" : "Normal") : (locale === "ko" ? "높음" : "High")}</span></label>)}</div></div>
 
-        <div className="quickField"><span className="quickLabel">{locale === "ko" ? "일정" : "Schedule"}</span><div className="quickScheduleChoice"><label className={destination === "inbox" ? "active" : ""}><input type="radio" name="destination" value="inbox" checked={destination === "inbox"} onChange={() => setDestination("inbox")}/><span>{locale === "ko" ? "일정 없음" : "No date"}</span></label><label className={destination === "date" ? "active" : ""}><input type="radio" name="destination" value="date" checked={destination === "date"} onChange={() => setDestination("date")}/><span>{locale === "ko" ? "날짜 선택" : "Choose date"}</span></label></div>
-          {destination === "date" && <div className="quickCalendar"><input type="date" name="date" min={today} defaultValue={today} required/></div>}
+        <div className="quickField"><span className="quickLabel">{locale === "ko" ? "일정" : "Schedule"}</span><input type="hidden" name="destination" value={destination}/><div className="quickScheduleChoice"><button type="button" className={destination === "inbox" ? "active" : ""} onClick={() => setDestination("inbox")}>{locale === "ko" ? "일정 없음" : "No date"}</button><button type="button" className={destination === "date" ? "active" : ""} onClick={() => setDestination("date")}>{locale === "ko" ? "날짜 선택" : "Choose date"}</button></div>
+          {destination === "date" && <div className="quickCalendar"><DateCalendarPicker initial={today} min={today} locale={locale}/></div>}
         </div>
 
         <label className="quickField"><span className="quickLabel">{locale === "ko" ? "반복" : "Repeat"}</span><select name="repeat" defaultValue="none"><option value="none">{locale === "ko" ? "반복 없음" : "No repeat"}</option><option value="daily">{locale === "ko" ? "매일" : "Daily"}</option><option value="weekly">{locale === "ko" ? "매주" : "Weekly"}</option><option value="monthly">{locale === "ko" ? "매월" : "Monthly"}</option></select></label>
