@@ -23,6 +23,7 @@ type ProjectTask = {
   sectionId: string | null;
   sortOrder: number;
   estimatedMinutes: number | null;
+  priority: "low" | "normal" | "high";
   focusSeconds: number;
   sessionCount: number;
   recurrenceRule: Rule | null;
@@ -130,7 +131,7 @@ export function ProjectTaskBoard({ projectId, viewMode, sections, tasks, locale,
               onDragOver={allowDrop}
               onDrop={event => dropOnTask(event, column.id, taskIndex)}
             >
-              <div className="taskCardHeading"><span className="dragHandle" draggable={reorderEnabled} onDragStart={event => beginDrag(event, { kind: "task", id: task.id })} aria-label={locale === "ko" ? "작업 끌어서 이동" : "Drag to move task"} role="button" tabIndex={0}>⠿</span><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={locale === "ko" ? "작업 이름 수정" : "Rename task"}/></div>
+              <div className="taskCardHeading"><span className="dragHandle" draggable={reorderEnabled} onDragStart={event => beginDrag(event, { kind: "task", id: task.id })} aria-label={locale === "ko" ? "작업 끌어서 이동" : "Drag to move task"} role="button" tabIndex={0}>⠿</span><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={locale === "ko" ? "작업 이름 수정" : "Rename task"}/><span className={`priorityLabel ${task.priority}`}>{task.priority === "low" ? (locale === "ko" ? "낮음" : "Low") : task.priority === "normal" ? (locale === "ko" ? "보통" : "Normal") : (locale === "ko" ? "높음" : "High")}</span></div>
               <p>{task.estimatedMinutes ? `${locale === "ko" ? "예상" : "Est."} ${task.estimatedMinutes}${locale === "ko" ? "분" : "m"} · ` : ""}{locale === "ko" ? "집중" : "Focus"} {duration(task.focusSeconds, locale)} · {task.sessionCount}{locale === "ko" ? "회" : ""}</p>
               <TaskSchedulePicker taskId={task.id} locale={locale} scheduledItem={task.scheduledItem}/>
               <div className="cardTaskActions">

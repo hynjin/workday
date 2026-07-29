@@ -4,8 +4,8 @@ import { ConfirmSubmit, EditableText } from "@/components/editable-text";
 import { ProjectTaskBoard } from "@/components/project-task-board";
 import { ProjectRailLinks } from "@/components/project-rail-links";
 import {
-  archiveProject, completeProject, createAreaForProject, createProject, createSection, createTask, deleteProject, deleteTask,
-  reopenProject, restoreProject, restoreTask, setProjectViewMode, undoMoveTaskToInbox, updateProject,
+  archiveProject, completeProject, createAreaForProject, createProject, createSection, createTask, deleteProject,
+  setProjectViewMode, undoMoveTaskToInbox, updateProject,
   updateProjectArea,
 } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
@@ -19,15 +19,12 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
   const [params, locale] = await Promise.all([searchParams, getLocale()]);
   const today = getWorkdayDate();
   const sort = parseTaskSort(params.sort);
-  const [projects, completedProjects, archivedProjects, archivedTasks, areas] = await Promise.all([
+  const [projects, areas] = await Promise.all([
     prisma.project.findMany({
       where: { status: "active" },
       orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }],
       include: { area: { select: { title: true } }, tasks: { where: { status: "active", parentTaskId: null }, select: { id: true } } },
     }),
-    prisma.project.findMany({ where: { status: "completed" }, orderBy: { completedAt: "desc" }, include: { _count: { select: { tasks: true } } } }),
-    prisma.project.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { _count: { select: { tasks: true } } } }),
-    prisma.task.findMany({ where: { status: "archived" }, orderBy: { archivedAt: "desc" }, include: { project: true } }),
     prisma.area.findMany({ where: { status: "active" }, orderBy: { title: "asc" }, select: { id: true, title: true } }),
   ]);
   const selectedSummary = projects.find(project => project.id === params.project) ?? projects[0] ?? null;
@@ -65,6 +62,7 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
       sortOrder: task.sortOrder,
       createdAt: task.createdAt,
       estimatedMinutes: task.estimatedMinutes,
+      priority: task.priority,
       focusSeconds,
       sessionCount: sessions.length,
       completedCount: allItems.filter(item => item.status === "completed").length,
@@ -91,9 +89,9 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
     <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "장기 작업 공간" : "LONG-TERM WORK"}</p><h1>{locale === "ko" ? "프로젝트" : "Projects"}</h1><p className="lede">{locale === "ko" ? "섹션으로 흐름을 설계하고 목록과 칸반을 오가며 작업을 정리합니다." : "Shape the workflow with sections and switch between list and Kanban views."}</p></div><span className="status">{projects.length}{locale === "ko" ? "개" : ""}</span></header>
     <div className="projectsWorkspace">
       <aside className="panel projectRail">
-        <div className="railHeading"><h2>{locale === "ko" ? "목록" : "Lists"}</h2></div>
-        <ProjectRailLinks projects={projects.map(project => ({ id: project.id, title: project.title, taskCount: project.tasks.length }))} selectedId={selected?.id}/>
-        <details className="categoryCreate"><summary>{locale === "ko" ? "새 프로젝트" : "New project"}</summary><form action={createProject}><input name="title" placeholder={locale === "ko" ? "프로젝트 이름" : "Project name"} aria-label={locale === "ko" ? "프로젝트 이름" : "Project name"} required maxLength={120}/><select name="areaId" defaultValue=""><option value="">{locale === "ko" ? "Area 없음" : "No Area"}</option>{areas.map(area => <option value={area.id} key={area.id}>{area.title}</option>)}</select><button className="button full">{locale === "ko" ? "프로젝트 만들기" : "Create project"}</button></form></details>
+        <div className="railHeading"><h2>{locale === "ko" ? "프로젝트" : "Projects"}</h2><button className="railCollapse" type="button" aria-label={locale === "ko" ? "프로젝트 목록 접기" : "Collapse projects"} aria-expanded="true">‹</button></div>
+        <ProjectRailLinks projects={projects.map(project => ({ id: project.id, title: project.title, color: project.color, taskCount: project.tasks.length }))} selectedId={selected?.id}/>
+        <details className="categoryCreate"><summary><span aria-hidden="true">＋</span>{locale === "ko" ? "새 프로젝트" : "New project"}</summary><form action={createProject}><input name="title" placeholder={locale === "ko" ? "프로젝트 이름" : "Project name"} aria-label={locale === "ko" ? "프로젝트 이름" : "Project name"} required maxLength={120}/><select name="areaId" defaultValue=""><option value="">{locale === "ko" ? "영역 없음" : "No Area"}</option>{areas.map(area => <option value={area.id} key={area.id}>{area.title}</option>)}</select><fieldset className="colorChoices" aria-label={locale === "ko" ? "프로젝트 색상" : "Project color"}>{["sky","mint","lilac","peach","butter"].map(color => <label key={color}><input type="radio" name="color" value={color} defaultChecked={color === "sky"}/><i className={`colorDot ${color}`}/></label>)}</fieldset><button className="button full">{locale === "ko" ? "프로젝트 만들기" : "Create project"}</button></form></details>
       </aside>
       <section className="projectWorkspaceMain">
         {params.moved && params.fromProject === selected?.id && <aside className="actionNotice" role="status"><span>{locale === "ko" ? "작업을 Inbox로 이동했습니다." : "Task moved to Inbox."}</span><form action={undoMoveTaskToInbox}><input type="hidden" name="taskId" value={params.moved}/><input type="hidden" name="projectId" value={params.fromProject}/><button className="textButton accent">{locale === "ko" ? "실행 취소" : "Undo"}</button></form></aside>}
@@ -139,6 +137,5 @@ export default async function ProjectsPage({ searchParams }: { searchParams: Pro
         </section>
       </> : <section className="panel emptyState"><p>{locale === "ko" ? "첫 프로젝트를 만들거나 받은편지함에 작업을 수집하세요." : "Create your first project or capture tasks in Inbox."}</p></section>}</section>
     </div>
-    <details className="panel archiveBox"><summary>{locale === "ko" ? "완료·보관" : "Completed & archive"} ({completedProjects.length + archivedProjects.length + archivedTasks.length})</summary><div className="archiveGroups"><section><h3>{locale === "ko" ? "완료된 프로젝트" : "Completed projects"}</h3>{completedProjects.map(project => <div className="archiveRow" key={project.id}><span>{project.title}<small>{project.completedAt?.toISOString().slice(0, 10)}</small></span><div className="libraryActions"><form action={reopenProject}><input type="hidden" name="projectId" value={project.id}/><button className="textButton accent">{locale === "ko" ? "완료 취소" : "Reopen"}</button></form><form action={archiveProject}><input type="hidden" name="projectId" value={project.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form></div></div>)}</section><section><h3>{locale === "ko" ? "보관된 프로젝트" : "Archived projects"}</h3>{archivedProjects.map(project => <div className="archiveRow" key={project.id}><span>{project.title}<small>{project._count.tasks}</small></span><div className="libraryActions"><form action={restoreProject}><input type="hidden" name="projectId" value={project.id}/><button className="textButton accent">{locale === "ko" ? "복원" : "Restore"}</button></form><ConfirmSubmit action={deleteProject} fields={{ projectId: project.id }} message={locale === "ko" ? `‘${project.title}’ 프로젝트를 삭제할까요?` : `Delete “${project.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</section><section><h3>{locale === "ko" ? "보관된 작업" : "Archived tasks"}</h3>{archivedTasks.map(task => <div className="archiveRow" key={task.id}><span>{task.title}<small>{task.project?.title ?? (locale === "ko" ? "받은편지함" : "Inbox")}</small></span><div className="libraryActions"><form action={restoreTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton accent">{locale === "ko" ? "복원" : "Restore"}</button></form><ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요?` : `Delete “${task.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit></div></div>)}</section></div></details>
   </main>;
 }
