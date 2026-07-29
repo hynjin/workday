@@ -37,7 +37,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const [workdays, previousWorkdays, goalWorkdays, weeklyGoals] = await Promise.all([
     prisma.workday.findMany({
       where: { workdayDate: { gte: selectedStart, lt: selectedEnd } },
-      include: { items: { where: { dismissedAt: null }, include: { task: { select: { id: true, title: true } }, focusSessions: { where: { endedAt: { not: null } } } } } },
+      include: { items: { where: { dismissedAt: null }, include: { task: { select: { id: true, title: true, estimatedMinutes: true } }, focusSessions: { where: { endedAt: { not: null } } } } } },
       orderBy: { workdayDate: "asc" },
     }),
     prisma.workday.findMany({
@@ -131,10 +131,20 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const selectedGoal = period === "week" ? weeklyResults[0] : null;
   const goalMinutes = selectedGoal?.goal?.weeklyFocusMinutes ?? 300;
   const goalProgress = selectedGoal ? Math.min(100, Math.round(selectedGoal.actualSeconds / (goalMinutes * 60) * 100)) : 0;
+  const periodGoalSeconds = period === "week"
+    ? goalMinutes * 60
+    : weeklyResults.reduce((sum, row) => sum + (row.goal?.weeklyFocusMinutes ?? 0) * 60, 0);
+  const plannedSeconds = items.reduce((sum, item) => sum + (item.task?.estimatedMinutes ?? item.dailyGoalMinutes ?? 0) * 60, 0);
 
   return <main className="shell"><AppNav/>
     <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "실행 기록" : "EXECUTION HISTORY"}</p><h1>{locale === "ko" ? "리포트" : "Reports"}</h1><p className="lede">{locale === "ko" ? "주간 집중 목표와 작업별 목표 시간을 구분해 확인합니다." : "Review your weekly focus goal separately from each task’s Goal Time."}</p></div></header>
     <div className="reportControls"><nav className="reportSegments"><Link className={period === "week" ? "active" : ""} href="/growth?period=week">{locale === "ko" ? "주간" : "Weekly"}</Link><Link className={period === "month" ? "active" : ""} href="/growth?period=month">{locale === "ko" ? "월간" : "Monthly"}</Link></nav><nav className="weekNavigator"><Link className="button secondary" href={`/growth?period=${period}&start=${dateKey(previousStart)}`}>{locale === "ko" ? "이전" : "Previous"}</Link><strong>{rangeLabel}</strong>{canNext ? <Link className="button secondary" href={`/growth?period=${period}&start=${dateKey(selectedEnd)}`}>{locale === "ko" ? "다음" : "Next"}</Link> : <span className="button secondary disabled">{locale === "ko" ? "다음" : "Next"}</span>}</nav></div>
+
+    <section className="reportTimeSummary" aria-label={locale === "ko" ? "집중 시간 요약" : "Focus time summary"}>
+      <article><span>{period === "week" ? (locale === "ko" ? "주간 집중 목표" : "Weekly focus goal") : (locale === "ko" ? "월간 목표 총합" : "Monthly goal total")}</span><strong>{formatDuration(periodGoalSeconds, false, locale)}</strong><small>{period === "week" ? `${goalProgress}%` : (locale === "ko" ? "주간 목표 합계" : "Sum of weekly goals")}</small></article>
+      <article><span>{locale === "ko" ? "계획한 집중 시간" : "Planned focus"}</span><strong>{formatDuration(plannedSeconds, false, locale)}</strong><small>{locale === "ko" ? "작업별 예상 시간 합계" : "Task estimate total"}</small></article>
+      <article><span>{locale === "ko" ? "실제 집중 시간" : "Actual focus"}</span><strong>{formatDuration(focusSeconds, false, locale)}</strong><small>{plannedSeconds ? `${Math.round(focusSeconds / plannedSeconds * 100)}%` : "—"}</small></article>
+    </section>
 
     {period === "week" && selectedGoal && <section className="panel weeklyFocusGoal">
       <div><span>{locale === "ko" ? "주간 집중 목표" : "Weekly focus goal"}</span><strong>{Math.round(selectedGoal.actualSeconds / 60)} / {goalMinutes}{locale === "ko" ? "분" : " min"}</strong><small>{goalProgress}% · {locale === "ko" ? `남은 시간 ${Math.max(0, goalMinutes - Math.round(selectedGoal.actualSeconds / 60))}분` : `${Math.max(0, goalMinutes - Math.round(selectedGoal.actualSeconds / 60))} min remaining`}</small></div>
