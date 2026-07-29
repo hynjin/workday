@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Workday UI Prototype</title>
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="app-shell" id="app">
+    <aside class="sidebar">
+      <a class="brand" href="#schedule" data-page-link="schedule">
+        <span class="brand-mark"><svg><use href="#i-cloud"></use></svg></span><strong>Workday</strong>
+      </a>
+      <nav class="main-nav" aria-label="주요 메뉴">
+        <button class="nav-item is-active" data-page-link="schedule"><svg><use href="#i-calendar"></use></svg><span data-ko="일정" data-en="Schedule">일정</span></button>
+        <button class="nav-item" data-page-link="tasks"><svg><use href="#i-checklist"></use></svg><span data-ko="작업" data-en="Tasks">작업</span></button>
+        <button class="nav-item" data-page-link="areas"><svg><use href="#i-grid"></use></svg><span data-ko="영역" data-en="Areas">영역</span></button>
+        <button class="nav-item" data-page-link="projects"><svg><use href="#i-folder"></use></svg><span data-ko="프로젝트" data-en="Projects">프로젝트</span></button>
+        <button class="nav-item" data-page-link="reports"><svg><use href="#i-chart"></use></svg><span data-ko="리포트" data-en="Reports">리포트</span></button>
+        <button class="nav-item" data-page-link="archive"><svg><use href="#i-archive"></use></svg><span data-ko="보관함" data-en="Archive">보관함</span></button>
+      </nav>
+      <label class="search">
+        <svg><use href="#i-search"></use></svg>
+        <input data-ko-placeholder="검색" data-en-placeholder="Search" placeholder="검색">
+        <kbd>⌘K</kbd>
+      </label>
+      <div class="sidebar-bottom">
+        <div class="language">
+          <button class="utility" id="languageTrigger"><svg><use href="#i-globe"></use></svg><span id="languageLabel">한국어</span></button>
+          <div class="popover language-menu" id="languageMenu" hidden>
+            <button class="is-selected" data-language="ko">한국어</button>
+            <button data-language="en">English</button>
+          </div>
+        </div>
+        <button class="utility"><svg><use href="#i-logout"></use></svg><span data-ko="로그아웃" data-en="Log out">로그아웃</span></button>
+      </div>
+    </aside>
+
+    <main class="content">
+      <section class="page is-active" data-page="schedule">
+        <header class="page-head">
+          <div><span class="eyebrow">2026. 7. 29 WED</span><h1 data-ko="오늘의 일정" data-en="Today's schedule">오늘의 일정</h1><p data-ko="작업을 누르면 집중을 시작해요." data-en="Select a task to start focusing.">작업을 누르면 집중을 시작해요.</p></div>
+          <button class="button primary open-task"><svg><use href="#i-plus"></use></svg><span data-ko="새 작업" data-en="New task">새 작업</span></button>
+        </header>
+        <div class="schedule-grid">
+          <div>
+            <article class="day-summary"><div><strong data-ko="오늘의 흐름" data-en="Today's flow">오늘의 흐름</strong><span data-ko="5개 중 2개 완료 · 좋은 페이스예요 ☁️" data-en="2 of 5 complete · You're on a good pace ☁️">5개 중 2개 완료 · 좋은 페이스예요 ☁️</span></div><div class="progress"><i style="width:58%"></i></div></article>
+            <div class="section-title"><h2 data-ko="이 날짜의 작업" data-en="Tasks for this date">이 날짜의 작업</h2><span>5</span></div>
+            <div class="task-list schedule-tasks">
+              <article class="task-row" data-task="weekly"><form><button class="checkbox" aria-label="완료"></button></form><button class="task-main start-focus" data-goal="45"><strong data-ko="주간 리뷰 정리" data-en="Organize weekly review">주간 리뷰 정리</strong><small><i class="dot sky"></i><span data-ko="워크데이 개선" data-en="Workday improvements">워크데이 개선</span><span>45분</span></small></button><span class="priority high" data-ko="높음" data-en="High">높음</span><button class="icon-button menu-trigger" aria-label="작업 메뉴"><svg><use href="#i-more"></use></svg></button></article>
+              <article class="task-row is-complete"><form><button class="checkbox" aria-label="완료"><svg><use href="#i-check"></use></svg></button></form><button class="task-main"><strong data-ko="아침 스트레칭" data-en="Morning stretch">아침 스트레칭</strong><small><i class="dot mint"></i><span data-ko="건강" data-en="Health">건강</span><span data-ko="완료" data-en="Done">완료</span></small></button><span class="priority low" data-ko="낮음" data-en="Low">낮음</span><button class="icon-button menu-trigger" aria-label="작업 메뉴"><svg><use href="#i-more"></use></svg></button></article>
+              <article class="task-row"><form><button class="checkbox" aria-label="완료"></button></form><button class="task-main start-focus" data-goal="80"><strong data-ko="포트폴리오 문구 다듬기" data-en="Refine portfolio copy">포트폴리오 문구 다듬기</strong><small><i class="dot lilac"></i><span data-ko="포트폴리오" data-en="Portfolio">포트폴리오</span><span>1시간 20분</span></small></button><span class="priority normal" data-ko="보통" data-en="Normal">보통</span><button class="icon-button menu-trigger" aria-label="작업 메뉴"><svg><use href="#i-more"></use></svg></button></article>
+              <article class="task-row"><form><button class="checkbox" aria-label="완료"></button></form><button class="task-main start-focus" data-goal="none"><strong data-ko="병원 예약 확인" data-en="Confirm appointment">병원 예약 확인</strong><small><i class="dot peach"></i><span data-ko="생활" data-en="Life">생활</span><span data-ko="시간 없음" data-en="No estimate">시간 없음</span></small></button><span class="priority normal" data-ko="보통" data-en="Normal">보통</span><button class="icon-button menu-trigger" aria-label="작업 메뉴"><svg><use href="#i-more"></use></svg></button></article>
+            </div>
+          </div>
+          <aside class="calendar-card">
+            <header><button class="icon-button"><svg><use href="#i-chevron-left"></use></svg></button><strong>2026년 7월</strong><button class="icon-button"><svg><use href="#i-chevron-right"></use></svg></button></header>
+            <div class="calendar-grid" id="scheduleCalendar"></div>
+            <footer><span><i class="today-mark"></i><b data-ko="오늘" data-en="Today">오늘</b></span><span><i class="dot sky"></i><b data-ko="기록 있음" data-en="Recorded">기록 있음</b></span></footer>
+          </aside>
+        </div>
+      </section>
+
+      <section class="page" data-page="tasks">
+        <header class="page-head"><div><span class="eyebrow" data-ko="작업 모음" data-en="TASKS">작업 모음</span><h1 data-ko="작업" data-en="Tasks">작업</h1><p data-ko="해야 할 일을 한곳에서 정리해요." data-en="Organize everything in one place.">해야 할 일을 한곳에서 정리해요.</p></div><button class="button primary open-task"><svg><use href="#i-plus"></use></svg><span data-ko="새 작업" data-en="New task">새 작업</span></button></header>
+        <div class="tabs task-filters"><button class="is-active" data-ko="수집함" data-en="Inbox">수집함</button><button data-ko="오늘" data-en="Today">오늘</button><button data-ko="예정" data-en="Upcoming">예정</button><button data-ko="미정" data-en="Unscheduled">미정</button><button data-ko="완료 기록" data-en="Completed">완료 기록</button></div>
+        <div class="directory-list">
+          <article class="directory-row"><div><strong data-ko="여행 체크리스트 만들기" data-en="Create travel checklist">여행 체크리스트 만들기</strong><small><i class="dot butter"></i><span data-ko="수집함" data-en="Inbox">수집함</span><span>30분</span></small></div><div><button class="schedule-button"><svg><use href="#i-calendar"></use></svg><span data-ko="일정" data-en="Schedule">일정</span></button><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div></article>
+          <article class="directory-row"><div><strong data-ko="책상 조명 비교하기" data-en="Compare desk lights">책상 조명 비교하기</strong><small><i class="dot peach"></i><span data-ko="생활" data-en="Life">생활</span><span data-ko="시간 미정" data-en="No estimate">시간 미정</span></small></div><div><button class="schedule-button"><svg><use href="#i-calendar"></use></svg><span>8월 2일</span></button><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div></article>
+          <article class="directory-row"><div><strong data-ko="새 프로젝트 아이디어 정리" data-en="Outline new project ideas">새 프로젝트 아이디어 정리</strong><small><i class="dot lilac"></i><span data-ko="개인 프로젝트" data-en="Personal project">개인 프로젝트</span><span>1시간</span></small></div><div><button class="schedule-button"><svg><use href="#i-calendar"></use></svg><span data-ko="일정" data-en="Schedule">일정</span></button><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div></article>
+        </div>
+      </section>
+
+      <section class="page" data-page="areas">
+        <header class="page-head"><div><span class="eyebrow" data-ko="지속적으로 관리하는 영역" data-en="AREAS">지속적으로 관리하는 영역</span><h1 data-ko="영역" data-en="Areas">영역</h1><p data-ko="꾸준히 관리할 습관과 관련 프로젝트를 한곳에 모아요." data-en="Keep ongoing responsibilities and projects together.">꾸준히 관리할 습관과 관련 프로젝트를 한곳에 모아요.</p></div><button class="button primary open-area"><svg><use href="#i-plus"></use></svg><span data-ko="새 영역" data-en="New area">새 영역</span></button></header>
+        <div class="workspace">
+          <aside class="rail">
+            <div class="rail-tools"><button class="icon-button collapse-rail" aria-label="영역 목록 접기"><svg><use href="#i-chevron-left"></use></svg></button></div>
+            <nav><button class="is-active"><span><i class="dot mint"></i><b data-ko="건강" data-en="Health">건강</b></span><small>4</small></button><button><span><i class="dot lilac"></i><b data-ko="성장" data-en="Growth">성장</b></span><small>6</small></button><button><span><i class="dot peach"></i><b data-ko="생활" data-en="Life">생활</b></span><small>3</small></button><button><span><i class="dot butter"></i><b data-ko="관계" data-en="Relationships">관계</b></span><small>2</small></button></nav>
+          </aside>
+          <div class="workspace-body">
+            <header class="detail-head"><div class="detail-title"><i class="dot mint"></i><h2 data-ko="건강" data-en="Health">건강</h2></div><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></header>
+            <div class="stats"><article><span data-ko="프로젝트" data-en="Projects">프로젝트</span><strong>2</strong></article><article><span data-ko="직접 작업" data-en="Direct tasks">직접 작업</span><strong>4</strong></article><article><span data-ko="누적 집중" data-en="Total focus">누적 집중</span><strong>12시간 40분</strong></article></div>
+            <section class="content-section"><header><h3 data-ko="프로젝트" data-en="Projects">프로젝트</h3><button class="text-button open-area-project"><svg><use href="#i-plus"></use></svg></button></header><div class="project-mini-grid"><button><span><strong data-ko="아침 루틴 만들기" data-en="Build morning routine">아침 루틴 만들기</strong><small>7 / 10 완료</small></span><svg><use href="#i-chevron-right"></use></svg></button><button><span><strong data-ko="10km 달리기" data-en="Run 10km">10km 달리기</strong><small>4 / 8 완료</small></span><svg><use href="#i-chevron-right"></use></svg></button></div></section>
+            <section class="content-section"><header><h3 data-ko="직접 작업" data-en="Direct tasks">직접 작업</h3><button class="text-button open-task"><svg><use href="#i-plus"></use></svg></button></header><div class="area-tasks"><article><div><strong data-ko="비타민 챙기기" data-en="Take vitamins">비타민 챙기기</strong><small data-ko="매일 반복" data-en="Repeats daily">매일 반복</small></div><div><button class="schedule-button"><svg><use href="#i-calendar"></use></svg><span data-ko="오늘" data-en="Today">오늘</span></button><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div></article><article><div><strong data-ko="수면 기록 확인" data-en="Review sleep log">수면 기록 확인</strong><small data-ko="매주 반복" data-en="Repeats weekly">매주 반복</small></div><div><button class="schedule-button"><svg><use href="#i-calendar"></use></svg><span data-ko="일정" data-en="Schedule">일정</span></button><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div></article></div></section>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" data-page="projects">
+        <header class="page-head"><div><span class="eyebrow" data-ko="끝이 있는 목표" data-en="PROJECTS">끝이 있는 목표</span><h1 data-ko="프로젝트" data-en="Projects">프로젝트</h1><p data-ko="완료를 향해 움직이는 작업을 묶어서 관리해요." data-en="Group work that moves toward a clear outcome.">완료를 향해 움직이는 작업을 묶어서 관리해요.</p></div><button class="button primary open-project"><svg><use href="#i-plus"></use></svg><span data-ko="새 프로젝트" data-en="New project">새 프로젝트</span></button></header>
+        <div class="workspace">
+          <aside class="rail"><div class="rail-tools"><button class="icon-button collapse-rail" aria-label="프로젝트 목록 접기"><svg><use href="#i-chevron-left"></use></svg></button></div><nav><button class="is-active"><span><i class="dot sky"></i><b data-ko="워크데이 개선" data-en="Workday improvements">워크데이 개선</b></span><small>8</small></button><button><span><i class="dot lilac"></i><b data-ko="포트폴리오" data-en="Portfolio">포트폴리오</b></span><small>5</small></button><button><span><i class="dot butter"></i><b data-ko="여름 여행" data-en="Summer trip">여름 여행</b></span><small>6</small></button></nav></aside>
+          <div class="workspace-body">
+            <header class="detail-head"><div><div class="detail-title"><i class="dot sky"></i><h2 data-ko="워크데이 개선" data-en="Workday improvements">워크데이 개선</h2></div><p class="area-label"><i class="dot lilac"></i><span data-ko="성장" data-en="Growth">성장</span></p></div><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></header>
+            <div class="project-summary"><article><span data-ko="진행률" data-en="Progress">진행률</span><strong>62%</strong><div class="progress"><i style="width:62%"></i></div></article><article><span data-ko="다음 일정" data-en="Next schedule">다음 일정</span><strong data-ko="오늘 · 2개" data-en="Today · 2">오늘 · 2개</strong></article><article><span data-ko="누적 집중" data-en="Total focus">누적 집중</span><strong>8시간 25분</strong></article></div>
+            <div class="project-toolbar"><div class="view-switch"><button class="is-active" data-view="list"><svg><use href="#i-list"></use></svg><span data-ko="목록" data-en="List">목록</span></button><button data-view="board"><svg><use href="#i-board"></use></svg><span data-ko="보드" data-en="Board">보드</span></button></div><div><button class="button subtle section-create" hidden><svg><use href="#i-plus"></use></svg><span data-ko="섹션" data-en="Section">섹션</span></button><button class="button subtle open-task"><svg><use href="#i-plus"></use></svg><span data-ko="작업" data-en="Task">작업</span></button></div></div>
+            <div class="project-list project-view is-active"><div class="section-title"><h3 data-ko="진행 중" data-en="In progress">진행 중</h3><span>3</span></div><div class="directory-list"><article class="directory-row"><div><strong data-ko="리포트 차트 정리" data-en="Polish report charts">리포트 차트 정리</strong><small><span>1시간 30분</span><span data-ko="오늘" data-en="Today">오늘</span></small></div><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></article><article class="directory-row"><div><strong data-ko="모바일 내비게이션 점검" data-en="Review mobile navigation">모바일 내비게이션 점검</strong><small><span>45분</span><span data-ko="내일" data-en="Tomorrow">내일</span></small></div><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></article></div></div>
+            <div class="board project-view">
+              <section class="board-column"><header><span class="drag"><svg><use href="#i-grip"></use></svg></span><strong data-ko="할 일" data-en="To do">할 일</strong><small>2</small><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></header><article class="board-card" draggable="true"><div><span class="drag"><svg><use href="#i-grip"></use></svg></span><strong data-ko="빈 상태 문구 수정" data-en="Revise empty-state copy">빈 상태 문구 수정</strong><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div><small><span class="priority low" data-ko="낮음" data-en="Low">낮음</span><span>30분</span></small></article><article class="board-card" draggable="true"><div><span class="drag"><svg><use href="#i-grip"></use></svg></span><strong data-ko="아이콘 크기 점검" data-en="Review icon sizing">아이콘 크기 점검</strong><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div><small><span class="priority normal" data-ko="보통" data-en="Normal">보통</span><span>20분</span></small></article></section>
+              <section class="board-column"><header><span class="drag"><svg><use href="#i-grip"></use></svg></span><strong data-ko="진행 중" data-en="In progress">진행 중</strong><small>1</small><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></header><article class="board-card" draggable="true"><div><span class="drag"><svg><use href="#i-grip"></use></svg></span><strong data-ko="리포트 차트 정리" data-en="Polish report charts">리포트 차트 정리</strong><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div><small><span class="priority high" data-ko="높음" data-en="High">높음</span><span>1시간 30분</span></small></article></section>
+              <section class="board-column"><header><span class="drag"><svg><use href="#i-grip"></use></svg></span><strong data-ko="완료" data-en="Done">완료</strong><small>3</small><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></header><article class="board-card is-complete" draggable="true"><div><span class="drag"><svg><use href="#i-grip"></use></svg></span><strong data-ko="색상 토큰 정리" data-en="Define color tokens">색상 토큰 정리</strong><button class="icon-button menu-trigger"><svg><use href="#i-more"></use></svg></button></div><small><span data-ko="완료" data-en="Done">완료</span></small></article></section>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="page" data-page="reports">
+        <header class="page-head"><div><span class="eyebrow" data-ko="실행 기록" data-en="REPORTS">실행 기록</span><h1 data-ko="리포트" data-en="Reports">리포트</h1><p data-ko="계획과 실제 집중의 흐름을 함께 살펴봐요." data-en="Compare your plans with actual focus.">계획과 실제 집중의 흐름을 함께 살펴봐요.</p></div></header>
+        <div class="report-toolbar"><div class="tabs report-period"><button class="is-active" data-period="week" data-ko="주간" data-en="Weekly">주간</button><button data-period="month" data-ko="월간" data-en="Monthly">월간</button></div><div class="period-nav"><button class="icon-button"><svg><use href="#i-chevron-left"></use></svg></button><strong class="period-label">7월 27일 – 8월 2일</strong><button class="icon-button"><svg><use href="#i-chevron-right"></use></svg></button></div></div>
+        <div class="report-summary"><article><span class="goal-label" data-ko="주간 집중 목표" data-en="Weekly focus goal">주간 집중 목표</span><strong class="goal-value" data-ko="10시간" data-en="10h">10시간</strong><small data-ko="목표의 87% 달성" data-en="87% of goal">목표의 87% 달성</small><i class="sky"></i></article><article><span data-ko="계획한 집중 시간" data-en="Planned focus">계획한 집중 시간</span><strong class="planned-value" data-ko="9시간 30분" data-en="9h 30m">9시간 30분</strong><small data-ko="작업별 예상 시간 합계" data-en="Sum of task estimates">작업별 예상 시간 합계</small><i class="butter"></i></article><article><span data-ko="실제 집중 시간" data-en="Actual focus">실제 집중 시간</span><strong class="actual-value" data-ko="8시간 45분" data-en="8h 45m">8시간 45분</strong><small data-ko="계획의 92%" data-en="92% of plan">계획의 92%</small><i class="mint"></i></article></div>
+        <div class="metric-row"><article><span data-ko="완료 작업" data-en="Completed tasks">완료 작업</span><strong>18</strong></article><article><span data-ko="활동일" data-en="Active days">활동일</span><strong data-ko="6일" data-en="6 days">6일</strong></article><article><span data-ko="집중 세션" data-en="Focus sessions">집중 세션</span><strong data-ko="24회" data-en="24">24회</strong></article><article><span data-ko="계획 대비 실행" data-en="Plan execution">계획 대비 실행</span><strong>92%</strong></article></div>
+        <section class="report-card weekly-report">
+          <header class="section-title"><h2 data-ko="날짜별 집중 흐름" data-en="Focus flow by date">날짜별 집중 흐름</h2><span data-ko="영역별 누적" data-en="Stacked by area">영역별 누적</span></header>
+          <div class="weekly-chart" id="weeklyChart"></div>
+          <div class="chart-detail"><div class="donut"></div><div><h3 data-ko="수요일 · 영역별 집중" data-en="Wednesday · focus by area">수요일 · 영역별 집중</h3><p><span><i class="dot sky"></i><b data-ko="성장" data-en="Growth">성장</b><strong>1시간 20분</strong></span><span><i class="dot mint"></i><b data-ko="건강" data-en="Health">건강</b><strong>45분</strong></span><span><i class="dot peach"></i><b data-ko="생활" data-en="Life">생활</b><strong>25분</strong></span></p></div></div>
+        </section>
+        <div class="report-lower weekly-rankings">
+          <section class="report-card"><header class="section-title"><h2 data-ko="이번 주 영역별 집중" data-en="This week by area">이번 주 영역별 집중</h2><span class="duration-total" data-ko="8시간 45분" data-en="8h 45m">8시간 45분</span></header><div class="ranking"><p><span><i class="dot sky"></i><b data-ko="업무" data-en="Work">업무</b></span><strong data-ko="3시간 20분" data-en="3h 20m">3시간 20분</strong></p><p><span><i class="dot mint"></i><b data-ko="건강" data-en="Health">건강</b></span><strong data-ko="2시간 35분" data-en="2h 35m">2시간 35분</strong></p><p><span><i class="dot lilac"></i><b data-ko="개인 성장" data-en="Personal growth">개인 성장</b></span><strong data-ko="1시간 50분" data-en="1h 50m">1시간 50분</strong></p><p><span><i class="dot gray"></i><b data-ko="영역 없음" data-en="No area">영역 없음</b></span><strong data-ko="1시간" data-en="1h">1시간</strong></p></div></section>
+          <section class="report-card"><header class="section-title"><h2 data-ko="이번 주 프로젝트별 집중" data-en="This week by project">이번 주 프로젝트별 집중</h2><span data-ko="8시간 45분" data-en="8h 45m">8시간 45분</span></header><div class="ranking"><p><span><i class="dot mint"></i><b data-ko="10km 달리기 준비" data-en="10K preparation">10km 달리기 준비</b></span><strong data-ko="2시간 10분" data-en="2h 10m">2시간 10분</strong></p><p><span><i class="dot sky"></i><b>Workday</b></span><strong data-ko="3시간 5분" data-en="3h 05m">3시간 5분</strong></p><p><span><i class="dot lilac"></i><b data-ko="포트폴리오 개편" data-en="Portfolio refresh">포트폴리오 개편</b></span><strong data-ko="1시간 30분" data-en="1h 30m">1시간 30분</strong></p><p><span><i class="dot gray"></i><b data-ko="프로젝트 없음" data-en="No project">프로젝트 없음</b></span><strong data-ko="2시간" data-en="2h">2시간</strong></p></div></section>
+        </div>
+        <section class="monthly-report" hidden>
+          <div class="month-layout">
+            <section class="report-card month-calendar-section"><header class="section-title"><h2 data-ko="7월 집중 기록" data-en="July focus record">7월 집중 기록</h2><span><i class="dot sky"></i><b data-ko="기록 있음" data-en="Recorded">기록 있음</b></span></header><div class="month-grid" id="monthGrid"></div></section>
+            <section class="report-card month-detail"><header class="section-title"><h2 class="month-detail-title" data-ko="7월 24일 · 1시간 40분" data-en="July 24 · 1h 40m">7월 24일 · 1시간 40분</h2></header><div class="chart-detail"><div class="donut"></div><div class="legend"><span><i class="dot mint"></i><b data-ko="건강 40분" data-en="Health 40m">건강 40분</b></span><span><i class="dot sky"></i><b data-ko="업무 28분" data-en="Work 28m">업무 28분</b></span><span><i class="dot lilac"></i><b data-ko="개인 성장 20분" data-en="Personal growth 20m">개인 성장 20분</b></span><span><i class="dot gray"></i><b data-ko="영역 없음 12분" data-en="No area 12m">영역 없음 12분</b></span></div></div></section>
+          </div>
+          <div class="report-lower monthly-rankings">
+            <section class="report-card"><header class="section-title"><h2 data-ko="7월 영역별 집중" data-en="July focus by area">7월 영역별 집중</h2><span data-ko="31시간 20분" data-en="31h 20m">31시간 20분</span></header><div class="ranking"><p><span><i class="dot sky"></i><b data-ko="업무" data-en="Work">업무</b></span><strong data-ko="12시간 40분" data-en="12h 40m">12시간 40분</strong></p><p><span><i class="dot mint"></i><b data-ko="건강" data-en="Health">건강</b></span><strong data-ko="8시간 30분" data-en="8h 30m">8시간 30분</strong></p><p><span><i class="dot lilac"></i><b data-ko="개인 성장" data-en="Personal growth">개인 성장</b></span><strong data-ko="6시간 20분" data-en="6h 20m">6시간 20분</strong></p></div></section>
+            <section class="report-card"><header class="section-title"><h2 data-ko="주별 집중 목표" data-en="Weekly focus goals">주별 집중 목표</h2><span data-ko="월간 목표로 합산하지 않음" data-en="Not combined as a monthly goal">월간 목표로 합산하지 않음</span></header><div class="weekly-goals"><p><span data-ko="6월 29일–7월 5일" data-en="Jun 29–Jul 5">6월 29일–7월 5일</span><strong data-ko="6시간 10분 / 8시간" data-en="6h 10m / 8h">6시간 10분 / 8시간</strong></p><p><span data-ko="7월 6일–12일" data-en="Jul 6–12">7월 6일–12일</span><strong data-ko="7시간 40분 / 9시간" data-en="7h 40m / 9h">7시간 40분 / 9시간</strong></p><p><span data-ko="7월 13일–19일" data-en="Jul 13–19">7월 13일–19일</span><strong data-ko="8시간 45분 / 10시간" data-en="8h 45m / 10h">8시간 45분 / 10시간</strong></p></div></section>
+          </div>
+        </section>
+        <div class="report-lower shared-report-bottom">
+          <section class="report-card"><header class="section-title"><h2 data-ko="작업별 계획 · 실제 집중" data-en="Task plan · actual focus">작업별 계획 · 실제 집중</h2><span><b data-ko="차이 큰 순" data-en="Largest difference">차이 큰 순</b><button class="icon-button sort-button"><svg><use href="#i-sort"></use></svg></button></span></header><div class="ranking"><p><span data-ko="리포트 차트 정리" data-en="Polish report charts">리포트 차트 정리</span><strong data-ko="1시간 30분 · 2시간 5분" data-en="1h 30m · 2h 05m">1시간 30분 · 2시간 5분</strong></p><p><span data-ko="포트폴리오 문구" data-en="Portfolio copy">포트폴리오 문구</span><strong data-ko="1시간 · 45분" data-en="1h · 45m">1시간 · 45분</strong></p></div></section>
+          <section class="report-card"><header class="section-title"><h2 class="completion-title" data-ko="요일별 계획 · 완료" data-en="Planned · completed by day">요일별 계획 · 완료</h2><span class="completion-total" data-ko="계획 23 · 완료 18" data-en="Planned 23 · completed 18">계획 23 · 완료 18</span></header><div class="completion-chart" id="completionChart"></div></section>
+        </div>
+      </section>
+
+      <section class="page" data-page="archive">
+        <header class="page-head"><div><span class="eyebrow" data-ko="보관한 항목" data-en="ARCHIVE">보관한 항목</span><h1 data-ko="보관함" data-en="Archive">보관함</h1><p data-ko="보관한 프로젝트, 영역, 작업을 다시 확인해요." data-en="Review archived projects, areas, and tasks.">보관한 프로젝트, 영역, 작업을 다시 확인해요.</p></div></header>
+        <div class="tabs archive-tabs"><button class="is-active" data-ko="전체" data-en="All">전체</button><button data-ko="프로젝트" data-en="Projects">프로젝트</button><button data-ko="영역" data-en="Areas">영역</button><button data-ko="작업" data-en="Tasks">작업</button></div>
+        <section class="archive-group"><h2 data-ko="프로젝트" data-en="Projects">프로젝트</h2><article class="archive-row"><span><i class="dot lilac"></i><b data-ko="지난 포트폴리오 개편" data-en="Previous portfolio refresh">지난 포트폴리오 개편</b></span><div><button data-ko="복원" data-en="Restore">복원</button><button class="danger" data-ko="삭제" data-en="Delete">삭제</button></div></article></section>
+        <section class="archive-group"><h2 data-ko="영역 및 작업" data-en="Areas and tasks">영역 및 작업</h2><article class="archive-row"><span><i class="dot butter"></i><b data-ko="예전 독서 목록" data-en="Old reading list">예전 독서 목록</b></span><div><button data-ko="복원" data-en="Restore">복원</button><button class="danger" data-ko="삭제" data-en="Delete">삭제</button></div></article><article class="archive-row"><span><i class="dot peach"></i><b data-ko="보험 서류 정리" data-en="Organize insurance documents">보험 서류 정리</b></span><div><button data-ko="복원" data-en="Restore">복원</button><button class="danger" data-ko="삭제" data-en="Delete">삭제</button></div></article></section>
+      </section>
+    </main>
+  </div>
+
+  <div class="menu popover" id="rowMenu" hidden><button class="edit-task"><svg><use href="#i-edit"></use></svg><span data-ko="수정" data-en="Edit">수정</span></button><button><svg><use href="#i-archive"></use></svg><span data-ko="보관" data-en="Archive">보관</span></button><button class="danger"><svg><use href="#i-trash"></use></svg><span data-ko="삭제" data-en="Delete">삭제</span></button></div>
+
+  <div class="modal-layer" id="taskModal" hidden>
+    <button class="modal-backdrop" aria-label="닫기"></button>
+    <section class="modal task-modal" role="dialog" aria-modal="true" aria-labelledby="taskDialogTitle">
+      <header><div><h2 id="taskDialogTitle" data-ko="새 작업" data-en="New task">새 작업</h2><p data-ko="필요한 항목만 빠르게 설정하세요." data-en="Set only what you need.">필요한 항목만 빠르게 설정하세요.</p></div><button class="icon-button modal-close"><svg><use href="#i-x"></use></svg></button></header>
+      <div class="modal-body">
+        <input class="title-input" data-ko-placeholder="무엇을 해야 하나요?" data-en-placeholder="What needs to be done?" placeholder="무엇을 해야 하나요?">
+        <label class="field"><span data-ko="위치" data-en="Location">위치</span><button class="select-trigger" data-dropdown="location"><span><i class="dot sky"></i><b data-ko="수집함" data-en="Inbox">수집함</b></span><svg><use href="#i-chevron-down"></use></svg></button><div class="select-menu" data-dropdown-menu="location" hidden><label class="menu-search"><svg><use href="#i-search"></use></svg><input data-ko-placeholder="영역 또는 프로젝트 검색" data-en-placeholder="Search areas or projects" placeholder="영역 또는 프로젝트 검색"></label><button><i class="dot sky"></i><span data-ko="수집함" data-en="Inbox">수집함</span></button><button><i class="dot mint"></i><span data-ko="건강" data-en="Health">건강</span></button><button><i class="dot lilac"></i><span data-ko="포트폴리오" data-en="Portfolio">포트폴리오</span></button><button><i class="dot peach"></i><span data-ko="생활" data-en="Life">생활</span></button></div></label>
+        <div class="field"><div class="field-head"><span data-ko="예상 시간" data-en="Estimate">예상 시간</span><label class="switch"><input type="checkbox" id="estimateSwitch"><i></i><b data-ko="설정 안 함" data-en="Not set">설정 안 함</b></label></div><div class="estimate-fields" hidden><label><input type="number" value="0" min="0"><span data-ko="시간" data-en="h">시간</span></label><label><input type="number" value="30" min="0" max="59"><span data-ko="분" data-en="m">분</span></label><div class="presets"><button data-ko="15분" data-en="15m">15분</button><button class="is-active" data-ko="30분" data-en="30m">30분</button><button data-ko="45분" data-en="45m">45분</button><button data-ko="1시간" data-en="1h">1시간</button></div></div></div>
+        <fieldset class="field"><legend data-ko="우선순위" data-en="Priority">우선순위</legend><div class="priority-options"><label class="low"><input type="radio" name="priority"><span data-ko="낮음" data-en="Low">낮음</span></label><label class="normal is-active"><input type="radio" name="priority" checked><span data-ko="보통" data-en="Normal">보통</span></label><label class="high"><input type="radio" name="priority"><span data-ko="높음" data-en="High">높음</span></label></div></fieldset>
+        <fieldset class="field"><legend data-ko="일정" data-en="Schedule">일정</legend><div class="schedule-options"><button class="is-active" data-schedule="none"><svg><use href="#i-calendar-off"></use></svg><span data-ko="일정 없음" data-en="No date">일정 없음</span></button><button data-schedule="date"><svg><use href="#i-calendar-days"></use></svg><span data-ko="날짜 선택" data-en="Choose date">날짜 선택</span></button></div><div class="date-picker" hidden><header><button class="icon-button"><svg><use href="#i-chevron-left"></use></svg></button><strong data-ko="2026년 7월" data-en="July 2026">2026년 7월</strong><button class="icon-button"><svg><use href="#i-chevron-right"></use></svg></button></header><div class="calendar-grid" id="modalCalendar"></div></div></fieldset>
+        <label class="field"><span data-ko="반복" data-en="Repeat">반복</span><button type="button" class="select-trigger" data-dropdown="repeat"><span><b class="repeat-label" data-ko="반복 없음" data-en="No repeat">반복 없음</b></span><svg><use href="#i-chevron-down"></use></svg></button><div class="select-menu repeat-menu" data-dropdown-menu="repeat" hidden><button type="button" data-repeat="none" data-ko="반복 없음" data-en="No repeat">반복 없음</button><button type="button" data-repeat="daily" data-ko="매일" data-en="Daily">매일</button><button type="button" data-repeat="weekly" data-ko="매주" data-en="Weekly">매주</button><button type="button" data-repeat="monthly" data-ko="매월" data-en="Monthly">매월</button><button type="button" data-repeat="custom" data-ko="직접 설정" data-en="Custom">직접 설정</button></div></label>
+      </div>
+      <footer><button class="button subtle modal-close" data-ko="취소" data-en="Cancel">취소</button><button class="button primary modal-close" data-ko="작업 추가" data-en="Add task">작업 추가</button></footer>
+    </section>
+  </div>
+
+  <div class="modal-layer" id="simpleModal" hidden><button class="modal-backdrop"></button><section class="modal small-modal"><header><div><h2 id="simpleTitle">새 영역</h2><p id="simpleDescription">이름과 색상을 정해 주세요.</p></div><button class="icon-button modal-close"><svg><use href="#i-x"></use></svg></button></header><div class="modal-body"><label class="field"><span data-ko="이름" data-en="Name">이름</span><input class="form-input" data-ko-placeholder="이름 입력" data-en-placeholder="Enter a name" placeholder="이름 입력"></label><fieldset class="field"><legend data-ko="색상" data-en="Color">색상</legend><div class="color-options"><button class="sky is-active"><i></i></button><button class="mint"><i></i></button><button class="lilac"><i></i></button><button class="peach"><i></i></button><button class="butter"><i></i></button><button class="gray"><i></i></button></div></fieldset></div><footer><button class="button subtle modal-close" data-ko="취소" data-en="Cancel">취소</button><button class="button primary modal-close" data-ko="만들기" data-en="Create">만들기</button></footer></section></div>
+
+  <div class="modal-layer" id="areaProjectModal" hidden>
+    <button class="modal-backdrop"></button>
+    <section class="modal small-modal">
+      <header><div><h2 data-ko="프로젝트" data-en="Project">프로젝트</h2><p data-ko="이 영역에 프로젝트를 연결하거나 새로 만들어요." data-en="Connect or create a project for this area.">이 영역에 프로젝트를 연결하거나 새로 만들어요.</p></div><button class="icon-button modal-close"><svg><use href="#i-x"></use></svg></button></header>
+      <div class="modal-body">
+        <div class="tabs modal-tabs"><button class="is-active" data-project-tab="existing" data-ko="기존 프로젝트" data-en="Existing project">기존 프로젝트</button><button data-project-tab="new" data-ko="새 프로젝트" data-en="New project">새 프로젝트</button></div>
+        <div class="project-tab is-active" data-project-panel="existing">
+          <label class="field"><span data-ko="연결할 프로젝트" data-en="Project to connect">연결할 프로젝트</span><button class="select-trigger project-search-trigger"><b data-ko="프로젝트를 선택하세요" data-en="Choose a project">프로젝트를 선택하세요</b><svg><use href="#i-chevron-down"></use></svg></button></label>
+          <div class="project-options" hidden><label class="menu-search"><svg><use href="#i-search"></use></svg><input data-ko-placeholder="프로젝트 검색" data-en-placeholder="Search projects" placeholder="프로젝트 검색"></label><button><i class="dot sky"></i><span data-ko="워크데이 개선" data-en="Workday improvements">워크데이 개선</span></button><button><i class="dot lilac"></i><span data-ko="포트폴리오" data-en="Portfolio">포트폴리오</span></button><button><i class="dot butter"></i><span data-ko="여름 여행" data-en="Summer trip">여름 여행</span></button><button><i class="dot peach"></i><span data-ko="생활 정리" data-en="Life reset">생활 정리</span></button></div>
+        </div>
+        <div class="project-tab" data-project-panel="new"><label class="field"><span data-ko="프로젝트 이름" data-en="Project name">프로젝트 이름</span><input class="form-input" data-ko-placeholder="새 프로젝트 이름" data-en-placeholder="New project name" placeholder="새 프로젝트 이름"></label><fieldset class="field"><legend data-ko="색상" data-en="Color">색상</legend><div class="color-options"><button class="sky is-active"><i></i></button><button class="mint"><i></i></button><button class="lilac"><i></i></button><button class="peach"><i></i></button><button class="butter"><i></i></button><button class="gray"><i></i></button></div></fieldset></div>
+      </div>
+      <footer><button class="button subtle modal-close" data-ko="취소" data-en="Cancel">취소</button><button class="button primary modal-close" data-ko="확인" data-en="Confirm">확인</button></footer>
+    </section>
+  </div>
+
+  <div class="modal-layer" id="projectModal" hidden>
+    <button class="modal-backdrop"></button>
+    <section class="modal small-modal"><header><div><h2 data-ko="새 프로젝트" data-en="New project">새 프로젝트</h2><p data-ko="영역 없이도 프로젝트를 만들 수 있어요." data-en="A project can exist without an area.">영역 없이도 프로젝트를 만들 수 있어요.</p></div><button class="icon-button modal-close"><svg><use href="#i-x"></use></svg></button></header><div class="modal-body"><label class="field"><span data-ko="이름" data-en="Name">이름</span><input class="form-input" data-ko-placeholder="프로젝트 이름" data-en-placeholder="Project name" placeholder="프로젝트 이름"></label><label class="field"><span data-ko="영역" data-en="Area">영역</span><button class="select-trigger"><span><i class="dot gray"></i><b data-ko="영역 없음" data-en="No area">영역 없음</b></span><svg><use href="#i-chevron-down"></use></svg></button></label><fieldset class="field"><legend data-ko="색상" data-en="Color">색상</legend><div class="color-options"><button class="sky is-active"><i></i></button><button class="mint"><i></i></button><button class="lilac"><i></i></button><button class="peach"><i></i></button><button class="butter"><i></i></button><button class="gray"><i></i></button></div></fieldset></div><footer><button class="button subtle modal-close" data-ko="취소" data-en="Cancel">취소</button><button class="button primary modal-close" data-ko="만들기" data-en="Create">만들기</button></footer></section>
+  </div>
+
+  <section class="focus-screen" id="focusScreen" hidden>
+    <header><a class="brand"><span class="brand-mark"><svg><use href="#i-cloud"></use></svg></span><strong>Workday</strong></a><span class="focus-status"><i></i><b data-ko="집중 중" data-en="Focusing">집중 중</b></span></header>
+    <main><span class="focus-location"><i class="dot sky"></i><b data-ko="워크데이 개선" data-en="Workday improvements">워크데이 개선</b></span><h1 data-ko="주간 리뷰 정리" data-en="Organize weekly review">주간 리뷰 정리</h1><span class="focus-goal" data-ko="목표 45분" data-en="Goal 45 min">목표 45분</span><div class="focus-ring"><div><span data-ko="현재 세션" data-en="Current session">현재 세션</span><strong id="focusTime">00:00</strong></div></div><p class="focus-total"><span data-ko="오늘 누적" data-en="Today total">오늘 누적</span><strong>2시간 15분</strong></p><button class="focus-end" data-ko="세션 종료" data-en="End session">세션 종료</button><small data-ko="종료하면 지금까지의 시간이 자동으로 기록돼요." data-en="Your focused time is saved when the session ends.">종료하면 지금까지의 시간이 자동으로 기록돼요.</small></main>
+  </section>
+
+  <svg class="svg-sprite" aria-hidden="true">
+    <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M12 2v2m7.1.9-1.4 1.4M22 12h-2M4.9 4.9l1.4 1.4M2 12h2m2.5 7h11a4.5 4.5 0 0 0 .7-8.95A6.5 6.5 0 0 0 5.7 8.6 4.8 4.8 0 0 0 6.5 19Z"/></symbol>
+    <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z"/><path d="m9 16 2 2 4-5"/></symbol>
+    <symbol id="i-calendar-days" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
+    <symbol id="i-calendar-off" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h7m4 0h7M5 4h14a2 2 0 0 1 2 2v11M3 6v15h14"/><path d="m3 3 18 18"/></symbol>
+    <symbol id="i-checklist" viewBox="0 0 24 24"><path d="m4 6 2 2 3-4m3 3h8M4 13l2 2 3-4m3 3h8M4 20l2 2 3-4m3 3h8"/></symbol>
+    <symbol id="i-grid" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="2"/></symbol>
+    <symbol id="i-folder" viewBox="0 0 24 24"><path d="m12 2 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 17l9 5 9-5"/></symbol>
+    <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 19V9m6 10V5m6 14v-7m5 7H2"/></symbol>
+    <symbol id="i-archive" viewBox="0 0 24 24"><path d="M4 7h16v13H4Zm-1-4h18v4H3Zm6 8h6"/></symbol>
+    <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
+    <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18"/></symbol>
+    <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H4v16h6m5-4 4-4-4-4m4 4H9"/></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
+    <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
+    <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
+    <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
+    <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-panel-left" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18m8-8-3 3 3 3"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".5"/><circle cx="3.5" cy="12" r=".5"/><circle cx="3.5" cy="18" r=".5"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="16" rx="2"/><rect x="14" y="4" width="7" height="10" rx="2"/></symbol>
+    <symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></symbol>
+    <symbol id="i-sort" viewBox="0 0 24 24"><path d="M5 7h10M5 12h7M5 17h4m9-10v10m-3-3 3 3 3-3"/></symbol>
+    <symbol id="i-edit" viewBox="0 0 24 24"><path d="m14 5 5 5L8 21H3v-5Zm2-2 5 5"/></symbol>
+    <symbol id="i-trash" viewBox="0 0 24 24"><path d="M4 7h16M9 3h6l1 4H8Zm-3 4 1 14h10l1-14M10 11v6m4-6v6"/></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
+  </svg>
+  <script src="./app.js"></script>
+</body>
+</html>

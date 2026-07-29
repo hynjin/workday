@@ -27,7 +27,13 @@ export function getBoundaryInstant(dateKey: string) {
   return new Date(guess);
 }
 export function formatWorkdayDate(date: Date, locale: "ko" | "en" = "ko") {
-  return new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-CA", { timeZone: "UTC", year: "numeric", month: "long", day: "numeric" }).format(date);
+  return new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-CA", {
+    timeZone: "UTC",
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "long",
+  }).format(date);
 }
 export function formatDuration(seconds: number, clock = false, locale: "ko" | "en" = "ko") {
   const safe = Math.max(0, Math.floor(seconds));

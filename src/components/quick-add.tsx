@@ -1,6 +1,7 @@
 "use client";
 
 import { useActionState, useEffect, useMemo, useRef, useState } from "react";
+import type { CSSProperties } from "react";
 import { quickAddTaskState } from "@/lib/actions";
 import type { Locale } from "@/lib/i18n";
 import { getWorkdayDate } from "@/lib/workday-date";
@@ -15,15 +16,20 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
   const formRef = useRef<HTMLFormElement>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const locationRef = useRef<HTMLDivElement>(null);
+  const repeatRef = useRef<HTMLDivElement>(null);
   const [destination, setDestination] = useState<Destination>("inbox");
   const [location, setLocation] = useState("");
   const [locationOpen, setLocationOpen] = useState(false);
+  const [locationMenuStyle, setLocationMenuStyle] = useState<CSSProperties>({});
   const [locationQuery, setLocationQuery] = useState("");
   const [estimateEnabled, setEstimateEnabled] = useState(false);
   const [hours, setHours] = useState(0);
   const [minutes, setMinutes] = useState(30);
   const [preset, setPreset] = useState(30);
   const [priority, setPriority] = useState<Priority>("normal");
+  const [repeat, setRepeat] = useState("none");
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  const [repeatMenuStyle, setRepeatMenuStyle] = useState<CSSProperties>({});
   const [, action, pending] = useActionState(quickAddTaskState, { success: false, nonce: 0 });
 
   const locations = useMemo(() => [
@@ -47,6 +53,8 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
     setMinutes(30);
     setPreset(30);
     setPriority("normal");
+    setRepeat("none");
+    setRepeatOpen(false);
   };
 
   useEffect(() => {
@@ -57,11 +65,13 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
       requestAnimationFrame(() => titleRef.current?.focus());
     };
     const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && locationOpen) setLocationOpen(false);
+      if (event.key === "Escape" && repeatOpen) setRepeatOpen(false);
+      else if (event.key === "Escape" && locationOpen) setLocationOpen(false);
       else if (event.key === "Escape" && detailsRef.current?.open) closeAndReset();
     };
     const outside = (event: PointerEvent) => {
       if (!locationRef.current?.contains(event.target as Node)) setLocationOpen(false);
+      if (!repeatRef.current?.contains(event.target as Node)) setRepeatOpen(false);
     };
     window.addEventListener("workday:quick-add", open);
     window.addEventListener("keydown", close);
@@ -71,7 +81,7 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
       window.removeEventListener("keydown", close);
       document.removeEventListener("pointerdown", outside);
     };
-  }, [locationOpen]);
+  }, [locationOpen, repeatOpen]);
 
   const submit = async (form: FormData) => {
     await action(form);
@@ -81,6 +91,17 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
     setPreset(value);
     setHours(Math.floor(value / 60));
     setMinutes(value % 60);
+  };
+  const floatingMenuStyle = (element: HTMLDivElement | null, estimatedHeight: number) => {
+    const rect = element?.getBoundingClientRect();
+    if (!rect) return {};
+    const below = rect.bottom + 6 + estimatedHeight <= window.innerHeight - 10;
+    return {
+      position: "fixed" as const,
+      left: rect.left,
+      top: below ? rect.bottom + 6 : Math.max(10, rect.top - estimatedHeight - 6),
+      width: rect.width,
+    };
   };
 
   return <details className="quickAdd" ref={detailsRef}>
@@ -92,8 +113,8 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
         <input ref={titleRef} className="quickTaskName" name="title" placeholder={locale === "ko" ? "무엇을 해야 하나요?" : "What needs to be done?"} maxLength={120} required autoComplete="off"/>
 
         <div className="quickField"><span className="quickLabel">{locale === "ko" ? "위치" : "Location"}</span><div className="quickSelect" ref={locationRef}>
-          <button type="button" className="quickSelectTrigger" onClick={() => setLocationOpen(value => !value)}><span><i className={`colorDot ${selectedLocation.color}`}/>{selectedLocation.title}</span><span aria-hidden="true">⌄</span></button>
-          {locationOpen && <div className="quickSelectMenu"><input value={locationQuery} onChange={event => setLocationQuery(event.target.value)} placeholder={locale === "ko" ? "영역 또는 프로젝트 검색" : "Search areas or projects"}/><div>{filteredLocations.map(item => <button type="button" key={item.value || "inbox"} onClick={() => { setLocation(item.value); setLocationOpen(false); setLocationQuery(""); }}><i className={`colorDot ${item.color}`}/>{item.title}</button>)}</div></div>}
+          <button type="button" className="quickSelectTrigger" onClick={() => { setRepeatOpen(false); setLocationMenuStyle(floatingMenuStyle(locationRef.current, 205)); setLocationOpen(value => !value); }}><span><i className={`colorDot ${selectedLocation.color}`}/>{selectedLocation.title}</span><span aria-hidden="true">⌄</span></button>
+          {locationOpen && <div className="quickSelectMenu isFloating" style={locationMenuStyle}><input value={locationQuery} onChange={event => setLocationQuery(event.target.value)} placeholder={locale === "ko" ? "영역 또는 프로젝트 검색" : "Search areas or projects"}/><div>{filteredLocations.map(item => <button type="button" key={item.value || "inbox"} onClick={() => { setLocation(item.value); setLocationOpen(false); setLocationQuery(""); }}><i className={`colorDot ${item.color}`}/>{item.title}</button>)}</div></div>}
         </div></div>
         <input type="hidden" name="areaId" value={location.startsWith("area:") ? location.slice(5) : ""}/>
         <input type="hidden" name="projectId" value={location.startsWith("project:") ? location.slice(8) : ""}/>
@@ -109,7 +130,15 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
           {destination === "date" && <div className="quickCalendar"><DateCalendarPicker initial={today} min={today} locale={locale}/></div>}
         </div>
 
-        <label className="quickField"><span className="quickLabel">{locale === "ko" ? "반복" : "Repeat"}</span><select name="repeat" defaultValue="none"><option value="none">{locale === "ko" ? "반복 없음" : "No repeat"}</option><option value="daily">{locale === "ko" ? "매일" : "Daily"}</option><option value="weekly">{locale === "ko" ? "매주" : "Weekly"}</option><option value="monthly">{locale === "ko" ? "매월" : "Monthly"}</option></select></label>
+        <div className="quickField"><span className="quickLabel">{locale === "ko" ? "반복" : "Repeat"}</span><input type="hidden" name="repeat" value={repeat}/><div className="quickSelect quickRepeat" ref={repeatRef}>
+          <button type="button" className="quickSelectTrigger" aria-expanded={repeatOpen} onClick={() => { setLocationOpen(false); setRepeatMenuStyle(floatingMenuStyle(repeatRef.current, 150)); setRepeatOpen(value => !value); }}><span>{repeat === "daily" ? (locale === "ko" ? "매일" : "Daily") : repeat === "weekly" ? (locale === "ko" ? "매주" : "Weekly") : repeat === "monthly" ? (locale === "ko" ? "매월" : "Monthly") : (locale === "ko" ? "반복 없음" : "No repeat")}</span><span aria-hidden="true">⌄</span></button>
+          {repeatOpen && <div className="quickSelectMenu quickRepeatMenu isFloating" style={repeatMenuStyle}>{[
+            ["none", locale === "ko" ? "반복 없음" : "No repeat"],
+            ["daily", locale === "ko" ? "매일" : "Daily"],
+            ["weekly", locale === "ko" ? "매주" : "Weekly"],
+            ["monthly", locale === "ko" ? "매월" : "Monthly"],
+          ].map(([value,label]) => <button type="button" key={value} onClick={() => { setRepeat(value); setRepeatOpen(false); }}>{label}</button>)}</div>}
+        </div></div>
       </div>
       <footer className="quickAddFooter"><button type="button" className="button secondary" onClick={closeAndReset}>{locale === "ko" ? "취소" : "Cancel"}</button><button className="button" disabled={pending}>{pending ? (locale === "ko" ? "저장 중…" : "Saving…") : (locale === "ko" ? "작업 추가" : "Add task")}</button></footer>
     </form>
