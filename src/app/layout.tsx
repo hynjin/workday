@@ -9,6 +9,7 @@ import { getOptionalUser } from "@/lib/auth";
 import { SessionKeeper } from "@/components/session-keeper";
 import { PopoverCloser } from "@/components/popover-closer";
 import { LocalBackupPrompt } from "@/components/local-backup-prompt";
+import { RailCollapseController } from "@/components/rail-collapse-controller";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,15 +22,15 @@ export async function generateMetadata(): Promise<Metadata> {
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const locale = await getLocale();
   const user = await getOptionalUser();
-  let projects: { id: string; title: string }[] = [];
-  let areas: { id: string; title: string }[] = [];
+  let projects: { id: string; title: string; color: string }[] = [];
+  let areas: { id: string; title: string; color: string }[] = [];
   if (user) {
     const today = getWorkdayDate();
     await generateOccurrences({ from: today, to: today });
     [projects, areas] = await Promise.all([
-      prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } }),
-      prisma.area.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true } }),
+      prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true, color: true } }),
+      prisma.area.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true, color: true } }),
     ]);
   }
-  return <html lang={locale}><body>{children}{user && <><LocalBackupPrompt locale={locale}/><SessionKeeper/><PopoverCloser/><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} areas={areas} locale={locale}/></>}</body></html>;
+  return <html lang={locale}><body>{children}{user && <><LocalBackupPrompt locale={locale}/><SessionKeeper/><PopoverCloser/><RailCollapseController/><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} areas={areas} locale={locale}/></>}</body></html>;
 }

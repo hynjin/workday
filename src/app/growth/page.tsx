@@ -18,7 +18,7 @@ function weekStartsInRange(start: Date, end: Date) {
   return result;
 }
 
-export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string; start?: string; day?: string }> }) {
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ period?: string; start?: string; day?: string; difference?: string }> }) {
   const [locale, params] = await Promise.all([getLocale(), searchParams]);
   const today = dateKeyToDate(getWorkdayDate());
   const period: Period = params.period === "month" ? "month" : "week";
@@ -62,16 +62,18 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const [currentTasks, currentProjects, currentAreas] = await Promise.all([
     prisma.task.findMany({ where: { id: { in: taskIds } }, select: { id: true, title: true } }),
     prisma.project.findMany({ where: { id: { in: projectIds } }, select: { id: true, title: true } }),
-    prisma.area.findMany({ where: { id: { in: areaIds } }, select: { id: true, title: true } }),
+    prisma.area.findMany({ where: { id: { in: areaIds } }, select: { id: true, title: true, color: true } }),
   ]);
   const taskNames = new Map(currentTasks.map(row => [row.id, row.title]));
   const projectNames = new Map(currentProjects.map(row => [row.id, row.title]));
   const areaNames = new Map(currentAreas.map(row => [row.id, row.title]));
+  const areaColors = new Map(currentAreas.map(row => [row.id, row.color]));
   const sessions = rawSessions.map(session => ({
     ...session,
     taskName: resolveReportName(session.taskIdSnapshot, session.taskTitleSnapshot, taskNames, session.item.titleSnapshot)!,
     projectName: resolveReportName(session.projectIdSnapshot, session.projectTitleSnapshot, projectNames),
     areaName: resolveReportName(session.areaIdSnapshot, session.areaTitleSnapshot, areaNames),
+    areaColor: session.areaIdSnapshot ? areaColors.get(session.areaIdSnapshot) ?? "gray" : "gray",
   }));
 
   const previousSeconds = previousWorkdays.flatMap(day => day.items).flatMap(item => item.focusSessions).reduce((sum, session) => sum + (session.durationSeconds ?? 0), 0);
@@ -119,6 +121,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   });
   const areas = grouped("area", locale === "ko" ? "Area 없음" : "No Area");
   const projects = grouped("project", locale === "ko" ? "프로젝트 없음" : "No Project");
+  const differenceAscending = params.difference === "small";
+  const taskDifferenceRows = [...taskTotals.values()].sort((a,b) => {
+    const left = Math.abs(a.goal - a.focused), right = Math.abs(b.goal - b.focused);
+    return differenceAscending ? left - right : right - left;
+  });
   const hrefFor = (day?: string) => `/growth?period=${period}&start=${dateKey(selectedStart)}${day ? `&day=${day}` : ""}`;
   const goalByWeek = new Map(weeklyGoals.map(goal => [dateKey(goal.weekStart), goal]));
   const weeklyResults = reportWeeks.map(start => {
@@ -160,11 +167,15 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       <article className="panel"><span>{locale === "ko" ? "집중 세션" : "Focus sessions"}</span><strong>{sessions.length}</strong></article>
       <article className="panel taskGoalMetric"><span>{locale === "ko" ? "작업 Goal Time 대비 실행" : "Actual vs task Goal Time"}</span><strong>{goalSeconds ? `${Math.round(focusSeconds / goalSeconds * 100)}%` : "—"}</strong><small>{formatDuration(focusSeconds, false, locale)} / {formatDuration(goalSeconds, false, locale)}</small></article>
     </section>
-    <section className="panel weeklyTrend reportTrend"><div className="sectionTitle"><h2>{locale === "ko" ? "날짜별 집중" : "Focused by day"}</h2><span>{locale === "ko" ? "날짜를 선택해 상세 보기" : "Select a date for details"}</span></div><div className={`trendChart ${period === "month" ? "monthly" : ""}`}>{dayRows.map(day => <Link className={`trendDay ${day.key === selectedDayKey ? "selected" : ""}`} href={hrefFor(day.key)} key={day.key}><div className="trendBarTrack"><i style={{ height: `${Math.max(day.seconds ? 6 : 0, Math.round(day.seconds / maxDay * 100))}%` }}/></div><strong>{Number(day.key.slice(-2))}</strong><small>{day.seconds ? formatDuration(day.seconds, false, locale) : "0"}</small></Link>)}</div>
+    <section className="panel weeklyTrend reportTrend"><div className="sectionTitle"><h2>{period === "week" ? (locale === "ko" ? "날짜별 집중 흐름" : "Focus flow by date") : (locale === "ko" ? "월간 집중 기록" : "Monthly focus record")}</h2><span>{period === "week" ? (locale === "ko" ? "영역별 누적" : "Stacked by Area") : (locale === "ko" ? "기록된 날짜를 선택하세요" : "Select a recorded date")}</span></div><div className={`trendChart ${period === "month" ? "monthly" : ""}`}>{dayRows.map((day,index) => {
+      const segments = new Map<string, number>();
+      day.sessions.forEach(session => segments.set(session.areaColor, (segments.get(session.areaColor) ?? 0) + (session.durationSeconds ?? 0)));
+      return <Link className={`trendDay ${day.seconds ? "recorded" : ""} ${day.key === selectedDayKey ? "selected" : ""}`} style={period === "month" && index === 0 ? { gridColumnStart: dateKeyToDate(day.key).getUTCDay() + 1 } : undefined} href={hrefFor(day.key)} key={day.key}><div className="trendBarTrack"><div className="trendStack" style={{ height: `${Math.max(day.seconds ? 6 : 0, Math.round(day.seconds / maxDay * 100))}%` }}>{[...segments.entries()].map(([color,seconds]) => <i className={`trendSegment ${color}`} style={{ height: `${day.seconds ? seconds / day.seconds * 100 : 0}%` }} key={color}/>)}</div></div><strong>{period === "week" ? new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-CA",{weekday:"short",timeZone:"UTC"}).format(dateKeyToDate(day.key)) : Number(day.key.slice(-2))}</strong><small>{day.seconds ? formatDuration(day.seconds, false, locale) : "0"}</small></Link>;
+    })}</div>
       <div className="dayDrilldown"><h3>{new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-CA", { month: "long", day: "numeric", timeZone: "UTC" }).format(dateKeyToDate(selectedDayKey))} · {formatDuration(selectedDay.seconds, false, locale)}</h3>{[...selectedDayTasks.entries()].map(([key, detail]) => <div key={key}><span><strong>{sessions.find(session => (session.taskIdSnapshot ?? session.taskName) === key)?.taskName ?? key}</strong><small>{detail.area} · {detail.project}</small></span><b>{formatDuration(detail.seconds, false, locale)}</b></div>)}{!selectedDayTasks.size && <p className="columnEmpty">{locale === "ko" ? "집중 기록이 없습니다." : "No focus recorded."}</p>}</div>
     </section>
     <div className="reportBreakdowns">{[[locale === "ko" ? "Area별" : "By Area", areas], [locale === "ko" ? "Project별" : "By Project", projects]].map(([title, rows]) => <section className="panel reportRanking" key={title as string}><h2>{title as string}</h2>{(rows as { name: string; seconds: number }[]).slice(0, 8).map(row => <div key={row.name}><span>{row.name}</span><strong>{formatDuration(row.seconds, false, locale)}</strong></div>)}{!(rows as unknown[]).length && <p className="columnEmpty">{locale === "ko" ? "집중 기록이 없습니다." : "No focus records."}</p>}</section>)}
-      <section className="panel reportRanking taskGoalBreakdown"><h2>{locale === "ko" ? "작업별 Goal Time · 실제 집중" : "Task Goal Time · actual focus"}</h2>{[...taskTotals.values()].map(value => <div key={value.name}><span>{value.name}</span><strong>{formatDuration(value.goal, false, locale)} · {formatDuration(value.focused, false, locale)}</strong></div>)}</section>
+      <section className="panel reportRanking taskGoalBreakdown"><div className="reportRankingHead"><h2>{locale === "ko" ? "작업별 계획 · 실제 집중" : "Task plan · actual focus"}</h2><span>{differenceAscending ? (locale === "ko" ? "차이 작은 순" : "Smallest difference") : (locale === "ko" ? "차이 큰 순" : "Largest difference")} <Link aria-label={locale === "ko" ? "정렬 순서 전환" : "Toggle sort order"} href={`${hrefFor(selectedDayKey)}&difference=${differenceAscending ? "large" : "small"}`}>{differenceAscending ? "⇣" : "⇩"}</Link></span></div>{taskDifferenceRows.map(value => <div key={value.name}><span>{value.name}</span><strong>{formatDuration(value.goal, false, locale)} · {formatDuration(value.focused, false, locale)}</strong></div>)}</section>
     </div>
     <div className="reportTaskColumns"><section className="panel completedReport"><h2>{locale === "ko" ? "완료한 작업" : "Completed tasks"}</h2>{completedItems.map(item => <div key={item.id}><span>{item.task?.title ?? item.titleSnapshot}</span><time>{dateKey(item.date)}</time></div>)}{!completedItems.length && <p className="columnEmpty">{locale === "ko" ? "완료 기록이 없습니다." : "No completed tasks."}</p>}</section>
       <section className="panel completedReport"><h2>{isCurrent ? (locale === "ko" ? "남은 작업" : "Remaining tasks") : (locale === "ko" ? "미완료 작업" : "Not completed")}</h2>{openItems.map(item => <div key={item.id}><span>{item.task?.title ?? item.titleSnapshot}</span><time>{dateKey(item.date)}</time></div>)}{!openItems.length && <p className="columnEmpty">{locale === "ko" ? "해당 작업이 없습니다." : "No tasks in this group."}</p>}</section></div>

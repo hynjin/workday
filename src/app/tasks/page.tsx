@@ -3,10 +3,11 @@ import { Prisma } from "@prisma/client";
 import { AppNav } from "@/components/app-nav";
 import { ConfirmSubmit, EditableText } from "@/components/editable-text";
 import { TaskSchedulePicker } from "@/components/task-schedule-picker";
-import { archiveTask, createTask, deleteTask, moveTaskToArea, moveTaskToProject, updateTask } from "@/lib/actions";
+import { archiveTask, deleteTask, moveTaskToArea, moveTaskToProject, updateTask } from "@/lib/actions";
 import { getLocale } from "@/lib/i18n";
 import { prisma } from "@/lib/prisma";
 import { dateKeyToDate, getWorkdayDate } from "@/lib/workday-date";
+import { OpenQuickAddButton } from "@/components/open-quick-add-button";
 
 export const dynamic = "force-dynamic";
 
@@ -32,8 +33,8 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
       where,
       orderBy: [{ sortOrder: "asc" }, { createdAt: "desc" }],
       include: {
-        project: { select: { id: true, title: true } },
-        area: { select: { id: true, title: true } },
+        project: { select: { id: true, title: true, color: true } },
+        area: { select: { id: true, title: true, color: true } },
         parentTask: { select: { title: true } },
         items: {
           where: filter === "completed"
@@ -56,16 +57,16 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
     completed: locale === "ko" ? "완료 기록" : "Completed",
   };
   return <main className="shell"><AppNav/>
-    <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "모든 작업" : "ALL TASKS"}</p><h1>{locale === "ko" ? "작업" : "Tasks"}</h1><p className="lede">{locale === "ko" ? "소속과 일정은 독립적입니다. Inbox는 Area나 Project가 정해지지 않은 작업만 모읍니다." : "Location and schedule are independent. Inbox contains only tasks without an Area or Project."}</p></div><span className="status">{tasks.length}{locale === "ko" ? "개" : ""}</span></header>
+    <header className="pageHeader"><div><p className="eyebrow">{locale === "ko" ? "모든 작업" : "ALL TASKS"}</p><h1>{locale === "ko" ? "작업" : "Tasks"}</h1><p className="lede">{locale === "ko" ? "소속과 일정 상태에 따라 필요한 작업을 찾아보세요." : "Find tasks by location and schedule."}</p></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
     <nav className="taskFilters" aria-label={locale === "ko" ? "작업 필터" : "Task filters"}>{filters.map(item => <Link className={item === filter ? "active" : ""} href={`/tasks?filter=${item}`} key={item}>{label[item]}</Link>)}</nav>
-    {filter === "inbox" && <form action={createTask} className="panel rowForm taskCapture"><input name="title" required maxLength={120} placeholder={locale === "ko" ? "분류할 작업을 빠르게 수집" : "Capture an unclassified task"}/><button className="button">{locale === "ko" ? "추가" : "Add"}</button></form>}
     <section className="panel taskDirectory">
       {tasks.map(task => {
         const item = task.items[0];
         const scheduledItem = item && item.status === "planned" ? { id: item.id, date: item.workday.workdayDate.toISOString().slice(0, 10) } : null;
-        const location = task.project?.title ?? task.area?.title ?? "Inbox";
+        const location = task.project?.title ?? task.area?.title ?? (locale === "ko" ? "수집함" : "Inbox");
+        const locationColor = task.project?.color ?? task.area?.color ?? "sky";
         return <article className="taskDirectoryRow" key={task.id}>
-          <div className="taskDirectoryMain"><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={locale === "ko" ? "작업 이름 수정" : "Rename task"}/><div className="taskMeta"><span className={`locationBadge ${task.project ? "project" : task.area ? "area" : "inbox"}`}>{location}</span>{task.parentTask && <span>{locale === "ko" ? "하위 작업 · " : "Subtask · "}{task.parentTask.title}</span>}{filter === "completed" && item && <time>{item.workday.workdayDate.toISOString().slice(0, 10)}</time>}</div></div>
+          <div className="taskDirectoryMain"><EditableText action={updateTask} idName="taskId" id={task.id} value={task.title} label={locale === "ko" ? "작업 이름 수정" : "Rename task"}/><div className="taskMeta"><span className="locationBadge"><i className={`colorDot ${locationColor}`}/>{location}</span>{task.parentTask && <span>{locale === "ko" ? "하위 작업 · " : "Subtask · "}{task.parentTask.title}</span>}{filter === "completed" && item && <time>{item.workday.workdayDate.toISOString().slice(0, 10)}</time>}</div></div>
           <div className="taskDirectoryActions">
             {filter !== "completed" && <TaskSchedulePicker taskId={task.id} locale={locale} compact scheduledItem={scheduledItem}/>}
             <details className="moreMenu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}>⋯</summary><div>

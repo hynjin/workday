@@ -15,9 +15,11 @@ const dateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 const titleFrom = (form: FormData) => titleSchema.parse(form.get("title"));
 const idFrom = (form: FormData, key: string) => idSchema.parse(form.get(key));
 const optionalIdFrom = (form: FormData, key: string) => z.string().optional().parse(form.get(key) || undefined);
+const colorFrom = (form: FormData) => z.enum(["sky", "mint", "lilac", "peach", "butter", "gray"]).parse(form.get("color") || "sky");
+const priorityFrom = (form: FormData) => z.enum(["low", "normal", "high"]).parse(form.get("priority") || "normal");
 
 function refreshWorkspace() {
-  ["/", "/tasks", "/inbox", "/upcoming", "/areas", "/projects", "/library", "/search"].forEach((path) => revalidatePath(path));
+  ["/", "/tasks", "/inbox", "/upcoming", "/areas", "/projects", "/growth", "/archive", "/library", "/search"].forEach((path) => revalidatePath(path));
 }
 
 function estimatedMinutesFrom(form: FormData) {
@@ -35,21 +37,23 @@ function futureDateKey(days: number) {
 export async function createProject(form: FormData) {
   const title = titleFrom(form);
   const areaId = optionalIdFrom(form, "areaId");
+  const color = colorFrom(form);
   if (areaId) await prisma.area.findFirstOrThrow({ where: { id: areaId, status: "active" } });
   const existing = await prisma.project.findFirst({ where: { areaId: areaId ?? null, title: { equals: title, mode: "insensitive" } } });
   const project = existing
-    ? await prisma.project.update({ where: { id: existing.id }, data: { status: "active", areaId, archivedAt: null, completedAt: null } })
-    : await prisma.project.create({ data: { title, areaId } });
+    ? await prisma.project.update({ where: { id: existing.id }, data: { status: "active", areaId, color, archivedAt: null, completedAt: null } })
+    : await prisma.project.create({ data: { title, areaId, color } });
   refreshWorkspace();
   redirect(`/projects?project=${project.id}`);
 }
 
 export async function createArea(form: FormData) {
   const title = titleFrom(form);
+  const color = colorFrom(form);
   const existing = await prisma.area.findFirst({ where: { title: { equals: title, mode: "insensitive" } } });
   const area = existing
-    ? await prisma.area.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } })
-    : await prisma.area.create({ data: { title } });
+    ? await prisma.area.update({ where: { id: existing.id }, data: { status: "active", color, archivedAt: null } })
+    : await prisma.area.create({ data: { title, color } });
   refreshWorkspace();
   redirect(`/areas?area=${area.id}`);
 }
@@ -59,7 +63,8 @@ export async function updateArea(form: FormData) {
   const title = titleFrom(form);
   const duplicate = await prisma.area.findFirst({ where: { title: { equals: title, mode: "insensitive" }, NOT: { id } } });
   if (duplicate) throw new Error("같은 이름의 Area가 이미 있습니다.");
-  await prisma.area.update({ where: { id }, data: { title } });
+  const color = form.has("color") ? colorFrom(form) : undefined;
+  await prisma.area.update({ where: { id }, data: { title, color } });
   refreshWorkspace();
 }
 
@@ -73,11 +78,17 @@ export async function restoreArea(form: FormData) {
   refreshWorkspace();
 }
 
+export async function deleteArea(form: FormData) {
+  await prisma.area.delete({ where: { id: idFrom(form, "areaId") } });
+  refreshWorkspace();
+}
+
 export async function updateProject(form: FormData) {
   const id = idFrom(form, "projectId"), title = titleFrom(form);
   const duplicate = await prisma.project.findFirst({ where: { title: { equals: title, mode: "insensitive" }, NOT: { id } } });
   if (duplicate) throw new Error("같은 이름의 프로젝트가 이미 있습니다.");
-  await prisma.project.update({ where: { id }, data: { title } });
+  const color = form.has("color") ? colorFrom(form) : undefined;
+  await prisma.project.update({ where: { id }, data: { title, color } });
   refreshWorkspace();
 }
 
@@ -225,14 +236,15 @@ export async function createTask(form: FormData) {
   const title = titleFrom(form), projectId = optionalIdFrom(form, "projectId"), areaId = optionalIdFrom(form, "areaId");
   if (projectId && areaId) throw new Error("작업은 Area와 Project 중 한 곳에만 직접 소속될 수 있습니다.");
   const estimatedMinutes = estimatedMinutesFrom(form);
+  const priority = priorityFrom(form);
   if (projectId) await prisma.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
   if (areaId) await prisma.area.findFirstOrThrow({ where: { id: areaId, status: "active" } });
   const existing = await prisma.task.findFirst({
     where: { projectId: projectId ?? null, areaId: areaId ?? null, parentTaskId: null, title: { equals: title, mode: "insensitive" } },
   });
   if (existing) {
-    if (existing.status === "archived") await prisma.task.update({ where: { id: existing.id }, data: { status: "active", archivedAt: null } });
-  } else await prisma.task.create({ data: { projectId, areaId, title, estimatedMinutes } });
+    await prisma.task.update({ where: { id: existing.id }, data: { status: "active", priority, estimatedMinutes, archivedAt: null } });
+  } else await prisma.task.create({ data: { projectId, areaId, title, estimatedMinutes, priority } });
   refreshWorkspace();
 }
 
@@ -284,7 +296,9 @@ export async function updateTask(form: FormData) {
   });
   if (duplicate) throw new Error("같은 목록에 같은 이름의 작업이 이미 있습니다.");
   await prisma.$transaction(async (tx) => {
-    await tx.task.update({ where: { id, status: "active" }, data: { title } });
+    const priority = form.has("priority") ? priorityFrom(form) : undefined;
+    const estimatedMinutes = form.has("estimatedMinutes") ? estimatedMinutesFrom(form) : undefined;
+    await tx.task.update({ where: { id, status: "active" }, data: { title, priority, estimatedMinutes } });
     await tx.workdayItem.updateMany({
       where: { taskId: id, workday: { status: { in: ["planning", "active"] } } },
       data: { titleSnapshot: title, legacyTitle: title },
@@ -407,6 +421,8 @@ export async function quickAddTask(form: FormData) {
   const estimatedMinutes = estimatedMinutesFrom(form);
   const projectId = optionalIdFrom(form, "projectId");
   const areaId = optionalIdFrom(form, "areaId");
+  const priority = priorityFrom(form);
+  const repeat = z.enum(["none", "daily", "weekly", "monthly"]).parse(form.get("repeat") || "none");
   if (projectId && areaId) throw new Error("작업 위치는 한 곳만 선택할 수 있습니다.");
   const destination = z.enum(["inbox", "today", "tomorrow", "date"]).parse(form.get("destination") || "inbox");
   const customDate = destination === "date" ? dateSchema.parse(form.get("date")) : null;
@@ -414,19 +430,44 @@ export async function quickAddTask(form: FormData) {
   if (areaId) await prisma.area.findFirstOrThrow({ where: { id: areaId, status: "active" } });
   await prisma.$transaction(async (tx) => {
     let task = await tx.task.findFirst({ where: { projectId: projectId ?? null, areaId: areaId ?? null, parentTaskId: null, title: { equals: title, mode: "insensitive" } } });
-    if (task) task = await tx.task.update({ where: { id: task.id }, data: { status: "active", archivedAt: null } });
-    else task = await tx.task.create({ data: { title, projectId, areaId, estimatedMinutes } });
-    if (destination === "inbox") return;
+    if (task) task = await tx.task.update({ where: { id: task.id }, data: { status: "active", priority, estimatedMinutes, archivedAt: null } });
+    else task = await tx.task.create({ data: { title, projectId, areaId, estimatedMinutes, priority } });
     const today = getWorkdayDate();
-    const dateKey = destination === "today" ? today : destination === "tomorrow" ? nextDate(dateKeyToDate(today)).toISOString().slice(0, 10) : customDate!;
-    if (dateKey < today) throw new Error("지난 날짜에는 새 작업을 추가할 수 없습니다.");
-    const workdayDate = dateKeyToDate(dateKey);
-    const workday = await tx.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
-    if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
-    await tx.workdayItem.createMany({
-      data: [{ workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title }],
-      skipDuplicates: true,
-    });
+    if (destination !== "inbox") {
+      const dateKey = destination === "today" ? today : destination === "tomorrow" ? nextDate(dateKeyToDate(today)).toISOString().slice(0, 10) : customDate!;
+      if (dateKey < today) throw new Error("지난 날짜에는 새 작업을 추가할 수 없습니다.");
+      const workdayDate = dateKeyToDate(dateKey);
+      const workday = await tx.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
+      if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
+      await tx.workdayItem.createMany({
+        data: [{ workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title }],
+        skipDuplicates: true,
+      });
+    }
+    if (repeat !== "none") {
+      const start = destination === "date" ? customDate! : destination === "tomorrow" ? futureDateKey(1) : today;
+      const startDate = dateKeyToDate(start);
+      await tx.recurrenceRule.upsert({
+        where: { taskId: task.id },
+        create: {
+          taskId: task.id,
+          frequency: repeat,
+          interval: 1,
+          weekdays: repeat === "weekly" ? [startDate.getUTCDay()] : [],
+          monthDay: repeat === "monthly" ? startDate.getUTCDate() : null,
+          startsOn: startDate,
+        },
+        update: {
+          frequency: repeat,
+          interval: 1,
+          weekdays: repeat === "weekly" ? [startDate.getUTCDay()] : [],
+          monthDay: repeat === "monthly" ? startDate.getUTCDate() : null,
+          startsOn: startDate,
+          endsOn: null,
+          generatedUntil: null,
+        },
+      });
+    }
   });
   refreshWorkspace();
   return { success: true };
@@ -778,14 +819,18 @@ export async function startFocus(form: FormData) {
 
 export async function endFocus(form: FormData) {
   const sessionId = idFrom(form, "sessionId");
-  await prisma.$transaction(async (tx) => {
+  const durationSeconds = await prisma.$transaction(async (tx) => {
     const session = await tx.focusSession.findUniqueOrThrow({ where: { id: sessionId } });
     if (!session.endedAt) {
       const endedAt = new Date();
-      await tx.focusSession.update({ where: { id: sessionId }, data: { endedAt, durationSeconds: Math.max(0, Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000)) } });
+      const duration = Math.max(0, Math.floor((endedAt.getTime() - session.startedAt.getTime()) / 1000));
+      await tx.focusSession.update({ where: { id: sessionId }, data: { endedAt, durationSeconds: duration } });
+      return duration;
     }
+    return session.durationSeconds ?? 0;
   });
-  redirect("/");
+  revalidatePath("/");
+  return durationSeconds;
 }
 
 export async function updateWeeklyFocusGoal(form: FormData) {

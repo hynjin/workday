@@ -4,7 +4,6 @@ import { useRef, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
 import { moveWorkdayItem, removeWorkdayItem, reorderWorkdayItem, saveWorkdayItemToLibrary, startFocus, toggleItemComplete, updateDailyGoal } from "@/lib/actions";
 import type { Locale } from "@/lib/i18n";
-import { formatDuration } from "@/lib/workday-date";
 
 type WorkItem = {
   id: string;
@@ -14,6 +13,8 @@ type WorkItem = {
   seconds: number;
   sessionCount: number;
   projectTitle: string | null;
+  locationColor: string;
+  priority: "low" | "normal" | "high";
   parentTitle: string | null;
   estimatedMinutes: number | null;
   dailyGoalMinutes: number | null;
@@ -43,13 +44,13 @@ export function WorkdayTaskList({ items, locale, actionable, planning, historica
   };
 
   return <div className="workList" aria-busy={pending}>{items.map((item, index) => <article className={`workItem ${item.status === "completed" ? "done" : ""}`} key={item.id} onDragOver={event => reorderable && event.preventDefault()} onDrop={event => reorderable && drop(event, index)}>
+    {actionable && <form action={toggleItemComplete} className="completionForm"><input type="hidden" name="itemId" value={item.id}/><button className={`completionButton ${item.status === "completed" ? "completed" : ""}`} aria-label={item.status === "completed" ? (locale === "ko" ? "완료 취소" : "Undo completion") : (locale === "ko" ? "작업 완료" : "Complete task")}><span aria-hidden="true">✓</span></button></form>}
     {reorderable && <span className="dragHandle workdayDragHandle" draggable onDragStart={event => { dragging.current = item.id; event.dataTransfer.effectAllowed = "move"; }} role="button" tabIndex={0} aria-label={locale === "ko" ? "끌어서 실행 순서 변경" : "Drag to reorder"}>⠿</span>}
-    <div className="workItemBody"><div className="taskTitleLine">{actionable && item.status !== "completed" ? <form action={startFocus} className="taskFocusLink"><input type="hidden" name="itemId" value={item.id}/><button title={locale === "ko" ? "작업을 누르면 집중을 시작해요" : "Select the task to start focusing"}>{item.title}</button></form> : <h3>{item.title}</h3>}<span className="itemCategory">{item.parentTitle ? `${item.parentTitle} › ` : ""}{item.projectTitle ?? (item.taskId ? "Inbox" : (locale === "ko" ? "하루 작업" : "One-off"))}</span></div><p>{locale === "ko" ? "목표" : "Goal"} {item.dailyGoalMinutes ? `${item.dailyGoalMinutes}m` : "—"} · {locale === "ko" ? "집중" : "Focused"} {formatDuration(item.seconds, false, locale)} · {item.sessionCount} {locale === "ko" ? "회" : "sessions"}</p>
+    <div className="workItemBody"><div className="taskTitleLine">{actionable && item.status !== "completed" ? <form action={startFocus} className="taskFocusLink"><input type="hidden" name="itemId" value={item.id}/><button title={locale === "ko" ? "작업을 누르면 집중을 시작해요" : "Select the task to start focusing"}>{item.title}</button></form> : <h3>{item.title}</h3>}</div><p className="workItemMeta"><i className={`colorDot ${item.locationColor}`}/>{item.parentTitle ? `${item.parentTitle} › ` : ""}{item.projectTitle ?? (item.taskId ? (locale === "ko" ? "수집함" : "Inbox") : (locale === "ko" ? "하루 작업" : "One-off"))} · {locale === "ko" ? "목표" : "Goal"} {item.dailyGoalMinutes ? `${item.dailyGoalMinutes}m` : "—"} <span className="playCue" aria-hidden="true">▶</span></p>
       {!historical && <form action={updateDailyGoal} className="dailyGoalForm"><input type="hidden" name="itemId" value={item.id}/><label><span>{locale === "ko" ? "오늘 목표(분)" : "Daily goal (min)"}</span><input type="number" name="estimatedMinutes" min="1" max="1440" defaultValue={item.dailyGoalMinutes ?? ""} placeholder="—"/></label><button className="textButton">{locale === "ko" ? "저장" : "Save"}</button></form>}
       {!item.taskId && !historical && <form action={saveWorkdayItemToLibrary} className="promoteForm"><input type="hidden" name="itemId" value={item.id}/><button className="textButton accent">{locale === "ko" ? "받은편지함에 저장" : "Save to Inbox"}</button></form>}
     </div>
-    {(actionable || planning) && <div className="actions">
-      {actionable && <form action={toggleItemComplete}><input type="hidden" name="itemId" value={item.id}/><button className={`completionButton ${item.status === "completed" ? "completed" : ""}`} aria-label={item.status === "completed" ? (locale === "ko" ? "완료 취소" : "Undo completion") : (locale === "ko" ? "작업 완료" : "Complete task")}><span aria-hidden="true">✓</span></button></form>}
+    {(actionable || planning) && <div className="actions"><span className={`priorityLabel ${item.priority}`}>{item.priority === "low" ? (locale === "ko" ? "낮음" : "Low") : item.priority === "normal" ? (locale === "ko" ? "보통" : "Normal") : (locale === "ko" ? "높음" : "High")}</span>
       <details className="moreMenu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}>⋯</summary><div>
         {(planning || actionable) && <><form action={moveWorkdayItem}><input type="hidden" name="itemId" value={item.id}/><input type="date" name="date" defaultValue={selectedDate} aria-label={locale === "ko" ? "다른 날짜로 이동" : "Move to another date"}/><button className="textButton accent">{locale === "ko" ? "날짜 변경" : "Change date"}</button></form><form action={removeWorkdayItem}><input type="hidden" name="itemId" value={item.id}/><button className="textButton">{actionable ? (locale === "ko" ? "오늘에서 빼기" : "Remove from today") : (locale === "ko" ? "일정 해제" : "Clear date")}</button></form></>}
         {actionable && <><button type="button" className="textButton" disabled={index === 0 || pending} onClick={() => move(item.id, index - 1)}>{locale === "ko" ? "위로 이동" : "Move up"}</button><button type="button" className="textButton" disabled={index === items.length - 1 || pending} onClick={() => move(item.id, index + 1)}>{locale === "ko" ? "아래로 이동" : "Move down"}</button></>}

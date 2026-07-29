@@ -66,6 +66,12 @@ enum ProductivityEventType {
   weekly_goal_reached
 }
 
+enum TaskPriority {
+  low
+  normal
+  high
+}
+
 model Task {
   id               String        @id @default(cuid())
   userId           String?       @db.Uuid
@@ -77,6 +83,7 @@ model Task {
   status           TaskStatus    @default(active)
   reusable         Boolean       @default(true)
   estimatedMinutes Int?
+  priority         TaskPriority  @default(normal)
   sortOrder        Int           @default(0)
   createdAt        DateTime      @default(now())
   updatedAt        DateTime      @updatedAt
@@ -121,6 +128,7 @@ model Project {
   userId     String?       @db.Uuid
   areaId     String?
   title      String
+  color      String        @default("sky")
   status     ProjectStatus @default(active)
   viewMode   ProjectViewMode @default(list)
   sortOrder  Int           @default(0)
@@ -140,6 +148,7 @@ model Area {
   id         String     @id @default(cuid())
   userId     String?    @db.Uuid
   title      String
+  color      String     @default("mint")
   status     AreaStatus @default(active)
   sortOrder  Int        @default(0)
   createdAt  DateTime   @default(now())

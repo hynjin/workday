@@ -7,9 +7,10 @@ export const dynamic = "force-dynamic";
 export default async function FocusPage({ params }: { params: Promise<{ sessionId: string }> }) {
   const { sessionId } = await params;
   const locale = await getLocale();
-  const session = await prisma.focusSession.findUnique({ where: { id: sessionId }, include: { workdayItem: { include: { focusSessions: true } } } });
+  const session = await prisma.focusSession.findUnique({ where: { id: sessionId }, include: { workdayItem: { include: { focusSessions: true, task: { include: { project: true, area: true } } } } } });
   if (!session) notFound();
   if (session.endedAt) redirect("/");
   const previousSeconds = session.workdayItem.focusSessions.filter(s => s.id !== session.id).reduce((sum, s) => sum + (s.durationSeconds ?? 0), 0);
-  return <FocusTimer locale={locale} sessionId={session.id} title={session.workdayItem.titleSnapshot} startedAt={session.startedAt.toISOString()} previousSeconds={previousSeconds}/>;
+  const location = session.workdayItem.task?.project ?? session.workdayItem.task?.area;
+  return <FocusTimer locale={locale} sessionId={session.id} title={session.workdayItem.titleSnapshot} startedAt={session.startedAt.toISOString()} previousSeconds={previousSeconds} goalMinutes={session.workdayItem.dailyGoalMinutes} location={location?.title ?? (locale === "ko" ? "수집함" : "Inbox")} color={location?.color ?? "sky"}/>;
 }
