@@ -4,7 +4,7 @@ export type FocusLocale = "ko" | "en";
 
 function FocusIconSprite() {
   return <svg className="svg-sprite" aria-hidden="true">
-    <symbol id="i-partly-sunny" viewBox="0 0 24 24"><circle cx="16" cy="7" r="4"/><path d="M16 1v1m0 10v1m6-6h-1M11.8 2.8l.8.8m6.8 6.8.8.8m0-8.4-.8.8"/><path d="M4 20h12a3.5 3.5 0 0 0 .35-6.98A5 5 0 0 0 6.8 14.5 3 3 0 0 0 4 20Z" fill="var(--sky)" stroke="var(--sky)" strokeWidth="4"/><path d="M4 20h12a3.5 3.5 0 0 0 .35-6.98A5 5 0 0 0 6.8 14.5 3 3 0 0 0 4 20Z"/></symbol>
+    <symbol id="i-partly-sunny" viewBox="0 0 24 24"><circle cx="16" cy="7" r="4"/><path d="M16 1v1m0 10v1m6-6h-1M11.8 2.8l.8.8m6.8 6.8.8.8m0-8.4-.8.8"/><path d="M4 20h12a3.5 3.5 0 0 0 .35-6.98A5 5 0 0 0 6.8 14.5 3 3 0 0 0 4 20Z"/></symbol>
   </svg>;
 }
 

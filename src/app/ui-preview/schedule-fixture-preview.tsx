@@ -48,14 +48,15 @@ function nextId() {
   return typeof crypto!=="undefined"&&"randomUUID" in crypto?crypto.randomUUID():`fixture-${Date.now()}`;
 }
 
-export function ScheduleFixturePreview() {
-  const [state,setState]=useState<FixtureState>(initialState);
+export function ScheduleFixturePreview({guestMode=false,emptyInitial=false,navigationBasePath="/ui-preview"}:{guestMode?:boolean;emptyInitial?:boolean;navigationBasePath?:string}={}) {
+  const [state,setState]=useState<FixtureState>(emptyInitial?{...initialState,items:[],totalFocusedSeconds:0}:initialState);
   const [hydrated,setHydrated]=useState(false);
   const [activeFocus,setActiveFocus]=useState<{itemId:string;startedAt:number}|null>(null);
   const [focusSeconds,setFocusSeconds]=useState(0);
   const [toasts,setToasts]=useState<{id:string;seconds:number}[]>([]);
   useEffect(()=>{
-    const stored=window.localStorage.getItem(STORAGE_KEY);
+    const storageKey=guestMode?`${STORAGE_KEY}-guest`:STORAGE_KEY;
+    const stored=window.localStorage.getItem(storageKey);
     let restored:FixtureState|undefined;
     if(stored) {
       try {
@@ -67,8 +68,8 @@ export function ScheduleFixturePreview() {
       if(restored)setState(restored);
       setHydrated(true);
     });
-  },[]);
-  useEffect(()=>{if(hydrated)window.localStorage.setItem(STORAGE_KEY,JSON.stringify(state));},[hydrated,state]);
+  },[guestMode]);
+  useEffect(()=>{if(hydrated)window.localStorage.setItem(guestMode?`${STORAGE_KEY}-guest`:STORAGE_KEY,JSON.stringify(state));},[guestMode,hydrated,state]);
   useEffect(()=>{
     if(!activeFocus)return;
     const tick=()=>setFocusSeconds(Math.max(0,Math.floor((Date.now()-activeFocus.startedAt)/1000)));
@@ -80,11 +81,12 @@ export function ScheduleFixturePreview() {
   const monthDate=new Date(`${state.monthKey}-01T00:00:00Z`);
   const monthOffset=monthDate.getUTCDay();
   const dayCount=new Date(Date.UTC(monthDate.getUTCFullYear(),monthDate.getUTCMonth()+1,0)).getUTCDate();
-  const recorded=new Set(["2026-07-03","2026-07-08","2026-07-12","2026-07-18","2026-07-24",TODAY]);
-  state.items.forEach(item=>(item.scheduledDates??[]).forEach(date=>recorded.add(date)));
+  const focusRecorded=new Set(["2026-07-03","2026-07-08","2026-07-12","2026-07-18","2026-07-24",TODAY]);
+  const plannedDates=new Set<string>();
+  state.items.forEach(item=>(item.scheduledDates??[]).forEach(date=>plannedDates.add(date)));
   const days:ScheduleDay[]=Array.from({length:dayCount},(_,index)=>{
     const key=`${state.monthKey}-${String(index+1).padStart(2,"0")}`;
-    return {key,hasWorkday:recorded.has(key),selected:key===state.selectedDate,today:key===TODAY};
+    return {key,hasWorkday:plannedDates.has(key)||focusRecorded.has(key),hasFocusRecord:focusRecorded.has(key),hasPlan:plannedDates.has(key),selected:key===state.selectedDate,today:key===TODAY};
   });
   const previous=new Date(monthDate); previous.setUTCMonth(previous.getUTCMonth()-1);
   const next=new Date(monthDate); next.setUTCMonth(next.getUTCMonth()+1);
@@ -193,7 +195,9 @@ export function ScheduleFixturePreview() {
       onSelectDate={selectDate} onSelectMonth={selectMonth}
       refreshAfterLocaleChange={false}
       refreshAfterMutation={false}
-      navigationBasePath="/ui-preview"
+      navigationBasePath={navigationBasePath}
+      guestMode={guestMode}
+      onRequestSignIn={()=>window.location.assign(`${navigationBasePath}/login`.replace("//","/"))}
     />
     <div className="focus-toast-stack" aria-live="polite" aria-atomic="false">{toasts.map(toast=><div className="focus-toast is-visible" role="status" key={toast.id}><span><svg><use href="#i-check"/></svg></span><div><strong>{state.locale==="ko"?"집중 시간이 기록됐어요":"Focus time recorded"}</strong><small>{state.locale==="ko"?`오늘 집중 기록에 ${toast.seconds<60?`${toast.seconds}초를`:`${Math.floor(toast.seconds/60)}분을`} 추가했어요.`:`Added ${toast.seconds<60?`${toast.seconds}s`:`${Math.floor(toast.seconds/60)}m`} to today's focus record.`}</small></div></div>)}</div>
   </div>;

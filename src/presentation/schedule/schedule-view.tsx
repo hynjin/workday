@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, useTransition, type DragEvent } from "react";
 import { useRouter } from "next/navigation";
+import { TaskMetadata, TaskPriorityBadge, TaskRepeatMetadata } from "@/presentation/shared/task-metadata";
+import { ActionToastStack, ConfirmDeleteDialog, useActionToasts } from "@/presentation/shared/action-feedback";
 
 // These names are the approved class names from ui/index.html.  Keeping this
 // mapping literal lets the preview and production adapters share this exact
@@ -44,7 +46,7 @@ export type ScheduleItem = {
   projectId:string|null; areaId:string|null; repeat:"none"|"daily"|"weekly"|"monthly";
   scheduledDates?:string[];
 };
-export type ScheduleDay = { key:string; hasWorkday:boolean; selected:boolean; today:boolean };
+export type ScheduleDay = { key:string; hasWorkday:boolean; hasFocusRecord?:boolean; hasPlan?:boolean; selected:boolean; today:boolean };
 export type ScheduleOption = { id:string; title:string; color:string; kind:"project"|"area" };
 export type ScheduleSearchItem = { id:string; title:string; color:string; kind:"task"|"project"|"area"; meta:string; href:string };
 type FormAction = (formData:FormData) => Promise<void>;
@@ -75,10 +77,10 @@ function Icon({ name, size=18 }: { name:string; size?:number }) {
   return <svg width={size} height={size} aria-hidden="true"><use href={`#i-${ids[name]??name}`}/></svg>;
 }
 
-function ApprovedIconSprite() {
+export function ApprovedIconSprite() {
   return <svg className="svg-sprite" aria-hidden="true">
     <symbol id="i-cloud" viewBox="0 0 24 24"><path d="M12 2v2m7.1.9-1.4 1.4M22 12h-2M4.9 4.9l1.4 1.4M2 12h2m2.5 7h11a4.5 4.5 0 0 0 .7-8.95A6.5 6.5 0 0 0 5.7 8.6 4.8 4.8 0 0 0 6.5 19Z"/></symbol>
-    <symbol id="i-partly-sunny" viewBox="0 0 24 24"><circle cx="16.5" cy="7" r="5"/><path d="M16.5.5v1.2m0 10.6v1.2M23 7h-1.2M11.9 2.4l.9.9m7.4 7.4.9.9m0-9.2-.9.9"/><path d="M3.5 20h11.8a3.7 3.7 0 0 0 .35-7.38A5.1 5.1 0 0 0 6 14.1 3.1 3.1 0 0 0 3.5 20Z" fill="var(--sky)" stroke="var(--sky)" strokeWidth="4"/><path d="M3.5 20h11.8a3.7 3.7 0 0 0 .35-7.38A5.1 5.1 0 0 0 6 14.1 3.1 3.1 0 0 0 3.5 20Z"/></symbol>
+    <symbol id="i-partly-sunny" viewBox="0 0 24 24"><circle cx="16.5" cy="7" r="5"/><path d="M16.5.5v1.2m0 10.6v1.2M23 7h-1.2M11.9 2.4l.9.9m7.4 7.4.9.9m0-9.2-.9.9"/><path d="M3.5 20h11.8a3.7 3.7 0 0 0 .35-7.38A5.1 5.1 0 0 0 6 14.1 3.1 3.1 0 0 0 3.5 20Z"/></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><path transform="translate(24 0) scale(-1 1)" d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5 8.7 8.7 0 1 0 20.5 15.2Z"/></symbol>
     <symbol id="i-calendar" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z"/><path d="m9 16 2 2 4-5"/></symbol>
     <symbol id="i-calendar-days" viewBox="0 0 24 24"><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></symbol>
@@ -91,6 +93,7 @@ function ApprovedIconSprite() {
     <symbol id="i-search" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="m16 16 5 5"/></symbol>
     <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><ellipse cx="12" cy="12" rx="4.2" ry="9"/><path d="M3 12h18"/></symbol>
     <symbol id="i-logout" viewBox="0 0 24 24"><path d="M10 4H4v16h6m5-4 4-4-4-4m4 4H9"/></symbol>
+    <symbol id="i-login" viewBox="0 0 24 24"><path d="M14 4h6v16h-6M9 8l4 4-4 4m4-4H3"/></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></symbol>
     <symbol id="i-check" viewBox="0 0 24 24"><path d="m5 12 4 4 10-10"/></symbol>
     <symbol id="i-more" viewBox="0 0 24 24"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></symbol>
@@ -98,6 +101,16 @@ function ApprovedIconSprite() {
     <symbol id="i-undo" viewBox="0 0 24 24"><path d="m9 7-5 5 5 5"/><path d="M20 17a7 7 0 0 0-7-7H4"/></symbol>
     <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
     <symbol id="i-chevron-down" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+    <symbol id="i-panel-collapse" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18m8-12-3 3 3 3"/></symbol>
+    <symbol id="i-panel-expand" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 3v18m5-12 3 3-3 3"/></symbol>
+    <symbol id="i-list" viewBox="0 0 24 24"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></symbol>
+    <symbol id="i-board" viewBox="0 0 24 24"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="10" rx="1"/></symbol>
+    <symbol id="i-repeat" viewBox="0 0 24 24"><path d="m17 2 4 4-4 4M3 11V9a3 3 0 0 1 3-3h15M7 22l-4-4 4-4m14-1v2a3 3 0 0 1-3 3H3"/></symbol>
+    <symbol id="i-sort-large" viewBox="0 0 24 24"><path d="M5 7h10M5 12h7M5 17h4m9-10v10m-3-3 3 3 3-3"/></symbol>
+    <symbol id="i-sort-small" viewBox="0 0 24 24"><path d="M5 7h4m-4 5h7m-7 5h10m3-10v10m-3-3 3 3 3-3"/></symbol>
+    <symbol id="i-rain" viewBox="0 0 24 24"><path d="M6.5 16h10.8a3.7 3.7 0 0 0 .35-7.38A5.1 5.1 0 0 0 8 10.1 3.1 3.1 0 0 0 6.5 16Z"/><path d="m8 19-1 2m6-2-1 2m6-2-1 2"/></symbol>
+    <symbol id="i-cloud-sun" viewBox="0 0 24 24"><circle cx="17" cy="7" r="4"/><path d="M17 1v1.5M23 7h-1.5M20.9 3.1l-1 1"/><path d="M3.5 20h11.8a3.7 3.7 0 0 0 .35-7.38A5.1 5.1 0 0 0 6 14.1 3.1 3.1 0 0 0 3.5 20Z"/></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2m0 16v2M2 12h2m16 0h2M4.9 4.9l1.4 1.4m11.4 11.4 1.4 1.4m0-14.2-1.4 1.4M6.3 17.7l-1.4 1.4"/></symbol>
     <symbol id="i-play" viewBox="0 0 24 24"><path d="m8 5 11 7-11 7Z"/></symbol>
     <symbol id="i-grip" viewBox="0 0 24 24"><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><path d="m6 6 12 12M18 6 6 18"/></symbol>
@@ -118,6 +131,8 @@ export function ApprovedSchedulePresentation(props:{
   refreshAfterLocaleChange?:boolean;
   refreshAfterMutation?:boolean;
   navigationBasePath?:string;
+  guestMode?:boolean;
+  onRequestSignIn?:()=>void;
 }) {
   const t=labels[props.locale], router=useRouter();
   const selectDate=(date:string)=>{
@@ -130,6 +145,8 @@ export function ApprovedSchedulePresentation(props:{
   };
   const [taskModal,setTaskModal]=useState<"header"|"empty"|null>(null), [searchModal,setSearchModal]=useState(false);
   const [editingItem,setEditingItem]=useState<Item|null>(null);
+  const [deleteItem,setDeleteItem]=useState<Item|null>(null);
+  const {toasts,notify}=useActionToasts();
   const [openMenu,setOpenMenu]=useState<string|null>(null),[menuPosition,setMenuPosition]=useState<{left:number;top:number}|null>(null), [pending,startTransition]=useTransition();
   const [pointerDrag,setPointerDrag]=useState<string|null>(null);
   const dragItem=useRef<string|null>(null);
@@ -156,63 +173,67 @@ export function ApprovedSchedulePresentation(props:{
     await action(formData);
     if(props.refreshAfterMutation!==false)router.refresh();
   });
-  return <div className={styles.root}><ApprovedIconSprite/><div className={styles.shell}>
+  return <div className={styles.root}><ApprovedIconSprite/><div className={`${styles.shell} ${props.guestMode?"guest-mode":""}`}>
     <aside className={styles.sidebar}>
       <Link className={styles.brand} href={base?`${base}/schedule`:"/"}><span className={styles.brandMark}><Icon name="weather"/></span><strong>Workday</strong></Link>
-      <nav className={styles.nav}>{nav.map(([icon,href,label],index)=><button key={href} className={`${styles.navItem} ${index===0?styles.navItemActive:""}`} type="button" onClick={()=>router.push(href)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
-      <button className={styles.search} type="button" onClick={()=>setSearchModal(true)}><Icon name="search"/><span>{t.search}</span></button>
+      <nav className={styles.nav}>{nav.slice(0,props.guestMode?1:nav.length).map(([icon,href,label],index)=><button key={href} className={`${styles.navItem} ${index===0?styles.navItemActive:""}`} type="button" onClick={()=>router.push(href)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
+      {!props.guestMode&&<button className={styles.search} type="button" onClick={()=>setSearchModal(true)}><Icon name="search"/><span>{t.search}</span></button>}
       <div className={styles.sidebarBottom}>
         <button className={styles.utility} type="button" onClick={()=>startTransition(async()=>{await props.onLocaleChange(props.locale==="ko"?"en":"ko");if(props.refreshAfterLocaleChange!==false)router.refresh();})}><Icon name="globe"/><span>{t.language}</span></button>
-        <button className={styles.utility} type="button" onClick={()=>startTransition(props.onSignOut)}><Icon name="logout"/><span>{t.logout}</span></button>
+        {props.guestMode?<button className={styles.utility} type="button" onClick={props.onRequestSignIn}><Icon name="login"/><span>{props.locale==="ko"?"로그인":"Sign in"}</span></button>:<button className={styles.utility} type="button" onClick={()=>startTransition(props.onSignOut)}><Icon name="logout"/><span>{t.logout}</span></button>}
       </div>
     </aside>
     <main className={styles.content}>
       <header className={styles.pageHead}><div><span className={styles.eyebrow}>{props.eyebrow}</span><h1>{props.title}</h1><p>{isToday?t.selectTask:dateResult}</p></div>
         <div className={styles.actions}><button className={`${styles.button} ${styles.primary} page-create-button schedule-action-button`} type="button" onClick={()=>setTaskModal("header")}><Icon name="plus"/><span>{t.newTask}</span></button>{props.selectedKey!==props.todayKey&&<button className={`${styles.button} ${styles.todayButton} schedule-action-button`} type="button" onClick={()=>selectDate(props.todayKey)}><Icon name="calendar"/><span>{t.today}</span></button>}</div>
       </header>
+      {props.guestMode&&<article className="guest-welcome"><div><span className="goal-cloud"><Icon name="cloud"/></span><p><strong>{props.locale==="ko"?"가볍게 오늘만 시작해 보세요":"Start with just today"}</strong><small>{props.locale==="ko"?"작업과 집중 기록은 이 기기에 임시로 저장돼요.":"Tasks and focus records are stored temporarily on this device."}</small></p></div><button type="button" onClick={props.onRequestSignIn}>{props.locale==="ko"?"계정에 저장하기":"Save to an account"}</button></article>}
       <div className={styles.scheduleGrid}><div>
+        {props.guestMode&&<div className="guest-focus-summary"><article><span>{props.locale==="ko"?"오늘 집중":"Focus today"}</span><strong>{formatMinutes(Math.floor(props.totalSeconds/60),props.locale)||(props.locale==="ko"?"0분":"0m")}</strong></article><article><span>{props.locale==="ko"?"집중 세션":"Focus sessions"}</span><strong>2{props.locale==="ko"?"회":""}</strong></article></div>}
         {props.removedItemId&&<aside className={styles.notice}><span>{props.locale==="ko"?"이 날짜의 작업에서 제거했어요. 작업과 기록은 유지됩니다.":"Removed from this date. The task and its history are preserved."}</span><form action={props.onUndoRemove}><input type="hidden" name="itemId" value={props.removedItemId}/><button>{t.undo}</button></form></aside>}
         {isToday&&<article className={styles.daySummary}><div><strong>{t.flow}</strong><span>{props.locale==="ko"?(props.items.length?`${props.items.length}개 중 ${done}개 완료 · ${todayFlow.ko} ${todayFlow.emoji}`:`${todayFlow.ko} ${todayFlow.emoji}`):(props.items.length?`${done} of ${props.items.length} complete · ${todayFlow.en} ${todayFlow.emoji}`:`${todayFlow.en} ${todayFlow.emoji}`)}</span></div><div className="flow-progress"><div className={styles.progress}><i style={{width:`${todayFlow.percent}%`}}/></div><b className="flow-percent">{todayFlow.percentLabel}</b></div></article>}
         <div className={styles.sectionTitle}><h2>{t.tasksFor}</h2><span>{props.items.length}</span></div>
         {props.items.length?<div className={styles.taskList} aria-busy={pending}>{props.items.map((item,index)=><article key={item.id} draggable={false} className={`${styles.taskRow} ${item.status==="completed"?styles.complete:""}`} onDragOver={event=>props.actionable&&event.preventDefault()} onDrop={event=>props.actionable&&drop(event,index)} onPointerUp={()=>{if(pointerDrag&&pointerDrag!==item.id){startTransition(async()=>{await props.onReorder(pointerDrag,index);if(props.refreshAfterMutation!==false)router.refresh();});}setPointerDrag(null);}}>
           <span className={styles.drag} draggable={props.actionable} tabIndex={props.actionable?0:undefined} role={props.actionable?"button":undefined} onPointerDown={()=>props.actionable&&setPointerDrag(item.id)} onDragStart={event=>{if(!props.actionable)return;dragItem.current=item.id;event.dataTransfer.effectAllowed="move";}} aria-label={props.locale==="ko"?"작업 순서 변경":"Reorder task"}><Icon name="grip" size={14}/></span>
           {props.actionable?<form action={props.onComplete}><input type="hidden" name="itemId" value={item.id}/><button className={styles.checkbox} aria-label={item.status==="completed"?(props.locale==="ko"?"완료 취소":"Undo completion"):(props.locale==="ko"?"완료":"Complete")}>{item.status==="completed"&&<Icon name="check" size={14}/>}</button></form>:<span/>}
-          <button className={styles.taskMain} type="button" disabled={!props.actionable||item.status==="completed"} onClick={()=>runItemAction(props.onStartFocus,item.id)}><strong>{item.title}</strong><small><i className={`${styles.dot} ${styles[item.locationColor]??styles.gray}`}/><span>{item.projectTitle??t.inbox}</span><span aria-hidden="true">·</span><span>{taskTimeMeta(item,props.locale)}</span></small></button>
+          <button className={styles.taskMain} type="button" disabled={!props.actionable||item.status==="completed"} onClick={()=>runItemAction(props.onStartFocus,item.id)}><span className="task-title-line"><strong>{item.title}</strong><TaskPriorityBadge locale={props.locale} priority={item.priority}/></span><TaskMetadata locale={props.locale} location={item.projectTitle??t.inbox} color={styles[item.locationColor]??styles.gray} goalMinutes={item.dailyGoalMinutes} focusedSeconds={item.focusedSeconds} trailing={<TaskRepeatMetadata locale={props.locale} repeat={item.repeat}/>}/></button>
           <button className={styles.play} type="button" disabled={!props.actionable||item.status==="completed"} aria-label={props.locale==="ko"?"집중 시작":"Start focus"} onClick={()=>runItemAction(props.onStartFocus,item.id)}><Icon name="play"/></button>
-          <span className={`${styles.priority} ${styles[item.priority]}`}>{t[item.priority]}</span>
-          <div className={styles.more} data-schedule-menu><button className={`${styles.iconButton} menu-trigger`} type="button" aria-label={props.locale==="ko"?"작업 메뉴":"Task menu"} onClick={event=>{if(openMenu===item.id){setOpenMenu(null);return;}const rect=event.currentTarget.getBoundingClientRect();setMenuPosition({top:Math.min(window.innerHeight-130,rect.bottom+5),left:Math.max(8,rect.right-170)});setOpenMenu(item.id);}}><Icon name="more"/></button>{openMenu===item.id&&<div className={`${styles.menu} popover`} style={menuPosition??undefined}>{item.taskId&&<button type="button" onClick={()=>{setEditingItem(item);setOpenMenu(null);}}><Icon name="edit"/><span>{t.edit}</span></button>}<button type="button" onClick={()=>{if(item.taskId)runItemAction(props.onArchiveTask,item.taskId);setOpenMenu(null);}}><Icon name="archive"/><span>{props.locale==="ko"?"보관":"Archive"}</span></button><button type="button" className={styles.danger} onClick={()=>{runItemAction(props.onDeleteTask,item.id);setOpenMenu(null);}}><Icon name="trash"/><span>{props.locale==="ko"?"삭제":"Delete"}</span></button></div>}</div>
+          <div className={styles.more} data-schedule-menu><button className={`${styles.iconButton} menu-trigger`} type="button" aria-label={props.locale==="ko"?"작업 메뉴":"Task menu"} onClick={event=>{if(openMenu===item.id){setOpenMenu(null);return;}const rect=event.currentTarget.getBoundingClientRect();setMenuPosition({top:Math.min(window.innerHeight-130,rect.bottom+5),left:Math.max(8,rect.right-170)});setOpenMenu(item.id);}}><Icon name="more"/></button>{openMenu===item.id&&<div className={`${styles.menu} popover`} style={menuPosition??undefined}>{item.taskId&&<button type="button" onClick={()=>{setEditingItem(item);setOpenMenu(null);}}><Icon name="edit"/><span>{t.edit}</span></button>}<button type="button" onClick={()=>{if(item.taskId)runItemAction(props.onArchiveTask,item.taskId);notify("archive",item.title);setOpenMenu(null);}}><Icon name="archive"/><span>{props.locale==="ko"?"보관":"Archive"}</span></button><button type="button" className={styles.danger} onClick={()=>{setDeleteItem(item);setOpenMenu(null);}}><Icon name="trash"/><span>{props.locale==="ko"?"삭제":"Delete"}</span></button></div>}</div>
         </article>)}</div>:<><div className={styles.taskList}/><div className={styles.empty}>{isToday?<><button className="empty-add-button" type="button" onClick={()=>setTaskModal("empty")}><Icon name="plus"/><span>{t.newTask}</span></button><small>{props.locale==="ko"?"오늘의 작업을 추가해 보세요.":"Add a task for today."}</small></>:<><span className={styles.emptyIcon}><Icon name="moon"/></span><strong>{t.empty}</strong><small>{t.emptyHelp}</small></>}</div></>}
       </div><Calendar {...props} onSelectDate={selectDate} onSelectMonth={selectMonth}/></div>
     </main>
-    {taskModal&&<TaskModal locale={props.locale} selectedKey={props.selectedKey} todayKey={props.todayKey} defaultDates={taskModal==="empty"?[props.todayKey]:[]} options={props.options} onClose={()=>setTaskModal(null)} onSubmit={props.onCreateTask}/>}
-    {editingItem&&<TaskModal locale={props.locale} selectedKey={props.selectedKey} todayKey={props.todayKey} defaultDates={[]} options={props.options} initial={editingItem} onClose={()=>setEditingItem(null)} onSubmit={props.onUpdateTask}/>}
+    {taskModal&&<ApprovedTaskModal locale={props.locale} selectedKey={props.selectedKey} todayKey={props.todayKey} defaultDates={taskModal==="empty"?[props.todayKey]:[]} options={props.options} onClose={()=>setTaskModal(null)} onSubmit={props.onCreateTask}/>}
+    {editingItem&&<ApprovedTaskModal locale={props.locale} selectedKey={props.selectedKey} todayKey={props.todayKey} defaultDates={[]} options={props.options} initial={editingItem} onClose={()=>setEditingItem(null)} onSubmit={props.onUpdateTask}/>}
     {searchModal&&<SearchModal locale={props.locale} items={props.searchItems} onClose={()=>setSearchModal(false)}/>}
+    {deleteItem&&<ConfirmDeleteDialog locale={props.locale} name={deleteItem.title} onCancel={()=>setDeleteItem(null)} onConfirm={()=>{runItemAction(props.onDeleteTask,deleteItem.id);notify("delete",deleteItem.title);setDeleteItem(null);}}/>}
+    <ActionToastStack locale={props.locale} toasts={toasts}/>
     {props.recordedFocusSeconds!==undefined&&<div className="focus-toast-stack" aria-live="polite" aria-atomic="false"><div className="focus-toast is-visible" role="status"><span><Icon name="check"/></span><div><strong>{props.locale==="ko"?"집중 시간이 기록됐어요":"Focus time recorded"}</strong><small>{focusRecordedMessage(props.recordedFocusSeconds,props.locale)}</small></div></div></div>}
   </div></div>;
 }
 
 function Calendar(props:{locale:Locale;monthKey:string;monthLabel:string;monthOffset:number;previousMonth:string;nextMonth:string;days:Day[];onSelectDate:(date:string)=>void;onSelectMonth:(month:string)=>void}) {
   const weekdays=props.locale==="ko"?["일","월","화","수","목","금","토"]:["S","M","T","W","T","F","S"];
-  return <aside className={styles.calendar}><header><button className={styles.iconButton} type="button" onClick={()=>props.onSelectMonth(props.previousMonth)} aria-label="previous"><Icon name="chevronLeft"/></button><strong>{props.monthLabel}</strong><button className={styles.iconButton} type="button" onClick={()=>props.onSelectMonth(props.nextMonth)} aria-label="next"><Icon name="chevronRight"/></button></header><div className={styles.calendarGrid}>{weekdays.map((day,index)=><span key={`${day}-${index}`}>{day}</span>)}{Array.from({length:props.monthOffset},(_,index)=><span key={`blank-${index}`}/>)}{props.days.map(day=><button type="button" onClick={()=>props.onSelectDate(day.key)} key={day.key} className={`${day.selected?styles.selected:""} ${day.today?styles.today:""} ${day.hasWorkday?styles.recorded:""}`}>{Number(day.key.slice(-2))}</button>)}</div><footer><span><i className={`${styles.dot} ${styles.sky}`}/><b>{props.locale==="ko"?"기록 있음":"Recorded"}</b></span></footer></aside>;
+  return <aside className={styles.calendar}><header><button className={styles.iconButton} type="button" onClick={()=>props.onSelectMonth(props.previousMonth)} aria-label="previous"><Icon name="chevronLeft"/></button><strong>{props.monthLabel}</strong><button className={styles.iconButton} type="button" onClick={()=>props.onSelectMonth(props.nextMonth)} aria-label="next"><Icon name="chevronRight"/></button></header><div className={styles.calendarGrid}>{weekdays.map((day,index)=><span key={`${day}-${index}`}>{day}</span>)}{Array.from({length:props.monthOffset},(_,index)=><span key={`blank-${index}`}/>)}{props.days.map(day=>{const focused=day.hasFocusRecord??day.hasWorkday,plannedOnly=(day.hasPlan??day.hasWorkday)&&!focused;return <button type="button" onClick={()=>props.onSelectDate(day.key)} key={day.key} className={`${day.selected?styles.selected:""} ${day.today?styles.today:""} ${focused?styles.recorded:""} ${plannedOnly?"is-planned-only":""}`}>{Number(day.key.slice(-2))}</button>;})}</div><footer><span><i className={`${styles.dot} ${styles.sky}`}/><b>{props.locale==="ko"?"집중 기록":"Focus recorded"}</b></span><span><i className="planned-only-dot"/><b>{props.locale==="ko"?"계획 있음":"Planned"}</b></span></footer></aside>;
 }
 
-function TaskModal({locale,selectedKey,todayKey,defaultDates,options,initial,onClose,onSubmit}:{locale:Locale;selectedKey:string;todayKey:string;defaultDates:string[];options:Option[];initial?:Item;onClose:()=>void;onSubmit:FormAction}) {
-  const t=labels[locale]; const [title,setTitle]=useState(initial?.title??""),[location,setLocation]=useState(initial?.projectId?`project:${initial.projectId}`:initial?.areaId?`area:${initial.areaId}`:""),[locationQuery,setLocationQuery]=useState(""),[estimate,setEstimate]=useState(initial?.estimatedMinutes!=null),[hours,setHours]=useState(Math.floor((initial?.estimatedMinutes??30)/60)),[minutes,setMinutes]=useState((initial?.estimatedMinutes??30)%60),[priority,setPriority]=useState<Priority>(initial?.priority??"normal"),[repeat,setRepeat]=useState(initial?.repeat??"none"),[scheduleDates,setScheduleDates]=useState<string[]>(initial?.scheduledDates??defaultDates),[open,setOpen]=useState<"location"|null>(null),[floatingRect,setFloatingRect]=useState<{left:number;top:number;width:number}|null>(null),[pending,startTransition]=useTransition();
-  const locationTrigger=useRef<HTMLButtonElement|null>(null);
+export function ApprovedTaskModal({locale,selectedKey,todayKey,defaultDates,defaultLocation="",options,sectionOptions=[],defaultSectionId="",initial,onClose,onSubmit}:{locale:Locale;selectedKey:string;todayKey:string;defaultDates:string[];defaultLocation?:string;options:Option[];sectionOptions?:{id:string;title:string}[];defaultSectionId?:string;initial?:Item;onClose:()=>void;onSubmit:FormAction}) {
+  const t=labels[locale]; const [title,setTitle]=useState(initial?.title??""),[location,setLocation]=useState(initial?.projectId?`project:${initial.projectId}`:initial?.areaId?`area:${initial.areaId}`:defaultLocation),[locationQuery,setLocationQuery]=useState(""),[sectionId,setSectionId]=useState(defaultSectionId),[estimate,setEstimate]=useState(initial?.estimatedMinutes!=null),[hours,setHours]=useState(Math.floor((initial?.estimatedMinutes??30)/60)),[minutes,setMinutes]=useState((initial?.estimatedMinutes??30)%60),[priority,setPriority]=useState<Priority>(initial?.priority??"normal"),[repeat,setRepeat]=useState(initial?.repeat??"none"),[scheduleDates,setScheduleDates]=useState<string[]>(initial?.scheduledDates??defaultDates),[open,setOpen]=useState<"location"|"section"|null>(null),[floatingRect,setFloatingRect]=useState<{left:number;top:number;width:number}|null>(null),[pending,startTransition]=useTransition();
+  const locationTrigger=useRef<HTMLButtonElement|null>(null),sectionTrigger=useRef<HTMLButtonElement|null>(null);
   const selected=options.find(option=>`${option.kind}:${option.id}`===location);
+  const selectedSection=sectionOptions.find(option=>option.id===sectionId);
   const visibleOptions=options.filter(option=>option.title.toLocaleLowerCase().includes(locationQuery.toLocaleLowerCase()));
   const multipleDates=scheduleDates.length>1;
   const repeatConflict=repeat!=="none"&&multipleDates;
   const repeatNeedsDate=repeat!=="none"&&!scheduleDates.length;
-  const openFloating=(trigger:HTMLButtonElement|null)=>{
-    if(open==="location"){setOpen(null);return;}
+  const openFloating=(kind:"location"|"section",trigger:HTMLButtonElement|null)=>{
+    if(open===kind){setOpen(null);return;}
     const rect=trigger?.getBoundingClientRect();
     if(rect){
       const menuHeight=188;
       const below=rect.bottom+6;
       setFloatingRect({left:rect.left,top:below+menuHeight>window.innerHeight-8?rect.top-menuHeight-6:below,width:rect.width});
     }
-    setOpen("location");
+    setOpen(kind);
   };
   useEffect(()=>{
     const outside=(event:PointerEvent)=>{ if(!(event.target as Element).closest("[data-select-root]")) setOpen(null); };
@@ -224,6 +245,7 @@ function TaskModal({locale,selectedKey,todayKey,defaultDates,options,initial,onC
     if(initial?.taskId)form.set("taskId",initial.taskId);
     if(initial?.id)form.set("itemId",initial.id);
     form.set("title",title.trim()); form.set("location",location);
+    form.set("sectionId",sectionId);
     form.set(selected?.kind==="project"?"projectId":"areaId",selected?.id??"");
     form.set("estimatedMinutes",estimate?String(Math.max(1,hours*60+minutes)):"");
     form.set("priority",priority); form.set("repeat",repeat);
@@ -233,7 +255,8 @@ function TaskModal({locale,selectedKey,todayKey,defaultDates,options,initial,onC
   });
   return <div className={styles.modalLayer} id="taskModal"><button className={styles.backdrop} aria-label={locale==="ko"?"닫기":"Close"} onClick={onClose}/><section className={`${styles.modal} ${styles.taskModal}`} role="dialog" aria-modal="true" aria-labelledby="taskDialogTitle"><header><div><h2 id="taskDialogTitle">{initial?(locale==="ko"?"작업 수정":"Edit task"):t.newTitle}</h2><p>{t.newHelp}</p></div><button className={styles.iconButton} type="button" onClick={onClose}><Icon name="close"/></button></header><div className={styles.modalBody}>
     <input className={styles.titleInput} value={title} onChange={event=>setTitle(event.target.value)} maxLength={120} autoFocus placeholder={t.taskName}/>
-    <div className={styles.field} data-select-root><span>{t.classification}</span><button ref={locationTrigger} className={styles.selectTrigger} type="button" aria-label={t.classification} onClick={()=>openFloating(locationTrigger.current)}><span><i className={`${styles.dot} ${styles[selected?.color??"gray"]}`}/><b>{selected?.title??t.noClassification}</b></span><Icon name="chevronDown"/></button>{open==="location"&&<div className={`${styles.selectMenu} is-floating`} style={floatingRect??undefined}><label className="menu-search"><Icon name="search"/><input value={locationQuery} onChange={event=>setLocationQuery(event.target.value)} placeholder={locale==="ko"?"영역 또는 프로젝트 검색":"Search areas or projects"}/></label><button type="button" onClick={()=>{setLocation("");setOpen(null);}}><i className={`${styles.dot} ${styles.gray}`}/><span>{t.noClassification}</span></button>{visibleOptions.map(option=><button type="button" key={`${option.kind}:${option.id}`} onClick={()=>{setLocation(`${option.kind}:${option.id}`);setOpen(null);}}><i className={`${styles.dot} ${styles[option.color]??styles.gray}`}/><span>{option.title}</span></button>)}</div>}</div>
+    <div className={styles.field} data-select-root><span>{t.classification}</span><button ref={locationTrigger} className={styles.selectTrigger} type="button" aria-label={t.classification} onClick={()=>openFloating("location",locationTrigger.current)}><span><i className={`${styles.dot} ${styles[selected?.color??"gray"]}`}/><b>{selected?.title??t.noClassification}</b></span><Icon name="chevronDown"/></button>{open==="location"&&<div className={`${styles.selectMenu} is-floating`} style={floatingRect??undefined}><label className="menu-search"><Icon name="search"/><input value={locationQuery} onChange={event=>setLocationQuery(event.target.value)} placeholder={options.every(option=>option.kind==="area")?(locale==="ko"?"영역 검색":"Search areas"):options.every(option=>option.kind==="project")?(locale==="ko"?"프로젝트 검색":"Search projects"):(locale==="ko"?"영역 또는 프로젝트 검색":"Search areas or projects")}/></label><button type="button" onClick={()=>{setLocation("");setOpen(null);}}><i className={`${styles.dot} ${styles.gray}`}/><span>{t.noClassification}</span></button>{visibleOptions.map(option=><button type="button" key={`${option.kind}:${option.id}`} onClick={()=>{setLocation(`${option.kind}:${option.id}`);setOpen(null);}}><i className={`${styles.dot} ${styles[option.color]??styles.gray}`}/><span>{option.title}</span></button>)}</div>}</div>
+    {sectionOptions.length>0&&<div className={styles.field} data-select-root><span>{locale==="ko"?"섹션":"Section"}</span><button ref={sectionTrigger} className={styles.selectTrigger} type="button" onClick={()=>openFloating("section",sectionTrigger.current)}><span><b>{selectedSection?.title??(locale==="ko"?"기본 목록":"Default list")}</b></span><Icon name="chevronDown"/></button>{open==="section"&&<div className={`${styles.selectMenu} is-floating`} style={floatingRect??undefined}><button type="button" onClick={()=>{setSectionId("");setOpen(null);}}><span>{locale==="ko"?"기본 목록":"Default list"}</span></button>{sectionOptions.map(option=><button type="button" key={option.id} onClick={()=>{setSectionId(option.id);setOpen(null);}}><span>{option.title}</span></button>)}</div>}</div>}
     <div className={styles.field}><div className={styles.fieldHead}><span>{t.estimate}</span><label className={styles.switch}><input type="checkbox" checked={estimate} onChange={event=>setEstimate(event.target.checked)}/><i/><b>{estimate?t.setTime:t.notSet}</b></label></div>{estimate&&<div className={styles.estimate}><label><input type="number" min={0} value={hours} onChange={event=>setHours(Number(event.target.value))}/><span>{t.hour}</span></label><label><input type="number" min={0} max={59} value={minutes} onChange={event=>setMinutes(Number(event.target.value))}/><span>{t.minute}</span></label><div className="presets">{[5,10,15,30,45,60].map(value=><button key={value} type="button" className={hours*60+minutes===value?"is-active":""} onClick={()=>{setHours(Math.floor(value/60));setMinutes(value%60);}}>{formatMinutes(value,locale)}</button>)}</div></div>}</div>
     <fieldset className={styles.field}><legend>{t.priority}</legend><div className={styles.priorityOptions}>{(["low","normal","high"] as Priority[]).map(value=><label key={value} className={`${styles[value]} ${priority===value?styles.prioritySelected:""}`}><input type="radio" name="priority" checked={priority===value} onChange={()=>setPriority(value)}/><span>{t[value]}</span></label>)}</div></fieldset>
     <div className={styles.field}><span>{repeat==="none"?t.scheduleField:(locale==="ko"?"반복 시작일":"Repeat starts")}</span><ScheduleDateMenu locale={locale} todayKey={todayKey} selected={scheduleDates} singleDate={repeat!=="none"} onChange={dates=>{setScheduleDates(dates);if(dates.length>1)setRepeat("none");}}/>{repeatNeedsDate&&<small className="field-guidance is-warning">{locale==="ko"?"반복 작업은 시작일 한 개를 선택해야 해요.":"Choose one start date for a repeating task."}</small>}</div>
@@ -262,11 +285,4 @@ function SearchModal({locale,items,onClose}:{locale:Locale;items:SearchItem[];on
 }
 
 function formatMinutes(value:number,locale:Locale){const h=Math.floor(value/60),m=value%60;return locale==="ko"?[h?`${h}시간`:"",m?`${m}분`:""].filter(Boolean).join(" "):[h?`${h}h`:"",m?`${m}m`:""].filter(Boolean).join(" ");}
-function formatFocusedTime(seconds:number,locale:Locale){return seconds<60?(locale==="ko"?`${seconds}초`:`${seconds}s`):formatMinutes(Math.floor(seconds/60),locale);}
-function taskTimeMeta(item:Item,locale:Locale){
-  const parts:string[]=[];
-  if(item.dailyGoalMinutes)parts.push(locale==="ko"?`목표 ${formatMinutes(item.dailyGoalMinutes,locale)}`:`Goal ${formatMinutes(item.dailyGoalMinutes,locale)}`);
-  if(item.focusedSeconds)parts.push(locale==="ko"?`집중 ${formatFocusedTime(item.focusedSeconds,locale)}`:`Focused ${formatFocusedTime(item.focusedSeconds,locale)}`);
-  return parts.length?parts.join(" · "):(locale==="ko"?"목표 없음":"No goal");
-}
 function focusRecordedMessage(seconds:number,locale:Locale){const minutes=Math.floor(seconds/60),remainder=seconds%60;if(locale==="en")return `Added ${minutes?`${minutes}m`:`${remainder}s`} to today's focus record.`;const value=minutes?`${minutes}분`:`${remainder}초`;return `오늘 집중 기록에 ${value}${minutes?"을":"를"} 추가했어요.`;}
