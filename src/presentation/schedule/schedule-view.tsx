@@ -54,6 +54,12 @@ type Day = ScheduleDay;
 type Option = ScheduleOption;
 type SearchItem = ScheduleSearchItem;
 
+export function formatScheduleEyebrow(dateKey:string) {
+  const date=new Date(`${dateKey}T00:00:00Z`);
+  const weekday=new Intl.DateTimeFormat("en-CA",{timeZone:"UTC",weekday:"short"}).format(date).toUpperCase();
+  return `${Number(dateKey.slice(0,4))}. ${Number(dateKey.slice(5,7))}. ${Number(dateKey.slice(8))} ${weekday}`;
+}
+
 const labels = {
   ko:{ schedule:"일정",tasks:"작업",areas:"영역",projects:"프로젝트",reports:"리포트",archive:"보관함",search:"검색",language:"한국어",logout:"로그아웃",newTask:"새 작업",today:"오늘로 이동",flow:"오늘의 흐름",tasksFor:"이 날짜의 작업",recorded:"기록 있음",empty:"이 날짜에는 예정된 작업이 없어요",emptyHelp:"새 작업을 추가하거나 다른 날짜를 선택해 보세요.",selectTask:"작업을 누르면 집중을 시작해요.",review:"이 날짜에 예정된 작업을 확인해요.",done:"완료",noEstimate:"목표 시간 없음",low:"낮음",normal:"보통",high:"높음",edit:"수정",remove:"이 날짜에서 빼기",newTitle:"새 작업",newHelp:"필요한 항목만 빠르게 설정하세요.",taskName:"무엇을 해야 하나요?",classification:"분류",inbox:"수집함",estimate:"목표 시간",notSet:"설정 안 함",setTime:"시간 설정",hour:"시간",minute:"분",priority:"우선순위",scheduleField:"일정",repeat:"반복",noRepeat:"반복 없음",daily:"매일",weekly:"매주",monthly:"매월",cancel:"취소",add:"작업 추가",searchHelp:"작업, 프로젝트, 영역을 한 번에 찾아요.",searchPlaceholder:"검색어를 입력하세요",noResults:"검색 결과가 없어요",undo:"실행 취소"},
   en:{ schedule:"Schedule",tasks:"Tasks",areas:"Areas",projects:"Projects",reports:"Reports",archive:"Archive",search:"Search",language:"English",logout:"Log out",newTask:"New task",today:"Go to today",flow:"Today's flow",tasksFor:"Tasks for this date",recorded:"Recorded",empty:"No tasks are scheduled for this date",emptyHelp:"Add a task or choose another date.",selectTask:"Select a task to start focusing.",review:"Review the tasks scheduled for this date.",done:"Done",noEstimate:"No goal time",low:"Low",normal:"Normal",high:"High",edit:"Edit",remove:"Remove from this date",newTitle:"New task",newHelp:"Set only what you need.",taskName:"What needs to be done?",classification:"Location",inbox:"Inbox",estimate:"Goal time",notSet:"Not set",setTime:"Set time",hour:"h",minute:"m",priority:"Priority",scheduleField:"Schedule",repeat:"Repeat",noRepeat:"No repeat",daily:"Daily",weekly:"Weekly",monthly:"Monthly",cancel:"Cancel",add:"Add task",searchHelp:"Find tasks, projects, and areas at once.",searchPlaceholder:"Type to search",noResults:"No results found",undo:"Undo"},

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ApprovedSchedulePresentation,
+  formatScheduleEyebrow,
   type ScheduleDay,
   type ScheduleItem,
   type ScheduleLocale,
@@ -183,7 +184,7 @@ export function ScheduleFixturePreview() {
       locale={state.locale} selectedKey={state.selectedDate} todayKey={TODAY} monthKey={state.monthKey}
       monthLabel={`${monthDate.getUTCFullYear()}년 ${monthDate.getUTCMonth()+1}월`}
       monthOffset={monthOffset} previousMonth={previous.toISOString().slice(0,7)} nextMonth={next.toISOString().slice(0,7)}
-      title={title} eyebrow={`${Number(state.selectedDate.slice(0,4))}. ${Number(state.selectedDate.slice(5,7))}. ${Number(state.selectedDate.slice(8))} ${new Intl.DateTimeFormat("en-CA",{timeZone:"UTC",weekday:"short"}).format(new Date(`${state.selectedDate}T00:00:00Z`)).toUpperCase()}`}
+      title={title} eyebrow={formatScheduleEyebrow(state.selectedDate)}
       items={displayItems} days={days} totalSeconds={state.totalFocusedSeconds??8100} actionable={state.selectedDate===TODAY}
       options={localizedOptions} searchItems={searchItems}
       onComplete={complete} onStartFocus={async form=>{setFocusSeconds(0);setActiveFocus({itemId:String(form.get("itemId")),startedAt:Date.now()});}} onRemove={remove} onUndoRemove={async()=>{}}

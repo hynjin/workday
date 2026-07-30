@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { getOrCreateCurrentWorkday, getWorkdayView } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n";
-import { dateKeyToDate, formatWorkdayDate, getWorkdayDate } from "@/lib/workday-date";
+import { dateKeyToDate, getWorkdayDate } from "@/lib/workday-date";
 import { ownedWorkdayWhere } from "@/lib/auth";
-import { ApprovedSchedulePresentation, type ScheduleItem, type ScheduleSearchItem } from "@/presentation/schedule/schedule-view";
+import { ApprovedSchedulePresentation, formatScheduleEyebrow, type ScheduleItem, type ScheduleSearchItem } from "@/presentation/schedule/schedule-view";
 import {
   changeScheduleLocale,
   archiveScheduleTask,
@@ -139,7 +139,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       : locale === "ko"
         ? `${Number(selectedKey.slice(5,7))}월 ${Number(selectedKey.slice(8))}일 일정`
         : `Schedule for ${new Intl.DateTimeFormat("en-CA",{timeZone:"UTC",month:"long",day:"numeric"}).format(dateKeyToDate(selectedKey))}`}
-    eyebrow={formatWorkdayDate(view.workdayDate, locale)}
+    eyebrow={formatScheduleEyebrow(selectedKey)}
     items={items}
     days={days}
     totalSeconds={view.totalSeconds}
