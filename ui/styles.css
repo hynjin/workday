@@ -438,7 +438,7 @@ svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7;
 .presets button { min-width:0; flex:1; padding:7px 4px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--sub); font-size:10px; white-space:nowrap; }
 .presets button.is-active { border-color:var(--sky); background:var(--sky-soft); color:var(--ink); }
 .priority-options,.schedule-options { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
-.schedule-options { grid-template-columns:1fr 1fr; }
+.schedule-options { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .priority-options label,.schedule-options button { display:flex; align-items:center; justify-content:center; gap:6px; padding:8px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--sub); font-size:10px; }
 .schedule-options svg,.button svg,.schedule-button svg,.select-trigger svg { flex:none; }
 .priority-options input { position:absolute; opacity:0; }
@@ -449,6 +449,8 @@ svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7;
 .field-guidance { display:block; margin-top:7px; color:var(--sub); font-size:8px; line-height:1.5; }
 .field-guidance.is-warning { color:#a56452; }
 .schedule-options button.is-active { border-color:var(--sky); background:var(--sky-soft); color:var(--ink); }
+.schedule-options button:disabled { border-color:var(--line); background:var(--soft); color:#aab4bb; cursor:default; }
+.repeat-options { grid-template-columns:repeat(4,minmax(0,1fr)); }
 .date-picker { width:min(270px,100%); margin:9px auto 0; padding:9px; border-radius:13px; background:var(--soft); }
 .date-picker .calendar-grid { gap:2px; }
 .date-picker .calendar-grid button { width:28px; height:28px; aspect-ratio:auto; justify-self:center; border-radius:7px; }
