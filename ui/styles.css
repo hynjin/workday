@@ -60,11 +60,12 @@ svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7;
 }
 .page-create-button>span,.calendar-today-button>span {
   font-size:12px;
-  font-weight:600;
+  font-weight:500;
   line-height:1.2;
   white-space:nowrap;
 }
-.schedule-action-button { width:104px; min-width:104px; }
+.schedule-action-button { position:relative; width:104px; min-width:104px; }
+.schedule-action-button>svg { position:absolute; left:12px; }
 .icon-button,.text-button { display:grid; place-items:center; border:0; background:transparent; color:var(--sub); }
 .icon-button { width:31px; height:31px; padding:0; border-radius:8px; }
 .icon-button:hover { background:var(--soft); color:var(--ink); }
@@ -144,6 +145,9 @@ svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7;
 .schedule-empty>span { display:grid; width:38px; height:38px; margin-bottom:10px; place-items:center; border-radius:13px 13px 13px 5px; background:var(--sky-soft); color:var(--sky-deep); }
 .schedule-empty svg { width:18px; height:18px; }
 .schedule-empty strong { font-size:11px; }.schedule-empty small { margin-top:5px; color:var(--sub); font-size:9px; }
+.empty-add-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; padding:8px 11px; border:0; border-radius:9px; background:var(--sky-soft); color:var(--sky-deep); font-size:11px; font-weight:500; }
+.empty-add-button:hover { background:#dff1fb; }
+.empty-add-button svg { width:13px; height:13px; }
 .tabs { display:inline-flex; gap:3px; margin-bottom:15px; padding:4px; border-radius:12px; background:var(--soft); }
 .tabs button,.view-switch button { padding:8px 12px; border:0; border-radius:9px; background:transparent; color:var(--sub); font-size:11px; }
 .tabs button.is-active,.view-switch button.is-active { background:#fff; color:var(--ink); box-shadow:0 3px 12px rgba(51,79,97,.07); }
