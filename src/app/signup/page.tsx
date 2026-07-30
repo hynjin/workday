@@ -3,7 +3,7 @@ import { ApprovedAuthPresentation } from "@/presentation/auth/auth-view";
 import { authenticateProduct, changeProductLocale } from "@/adapters/product-ui-actions";
 import { getOptionalUser } from "@/lib/auth";
 
-export default async function LoginPage() {
+export default async function SignupPage() {
   if(await getOptionalUser())redirect("/");
-  return <ApprovedAuthPresentation initialMode="login" navigationBasePath="" onAuthenticate={authenticateProduct} onLocaleChange={changeProductLocale}/>;
+  return <ApprovedAuthPresentation initialMode="signup" navigationBasePath="" onAuthenticate={authenticateProduct} onLocaleChange={changeProductLocale}/>;
 }

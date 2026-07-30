@@ -53,13 +53,20 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
       workdayDate: { gte: monthStart, lt: monthEnd },
       items: { some: { dismissedAt: null } },
     },
-    select: { workdayDate: true },
+    select: {
+      workdayDate: true,
+      items: {
+        where: { dismissedAt: null },
+        select: { focusSessions: { where: { durationSeconds: { gt: 0 } }, select: { id: true }, take: 1 } },
+      },
+    },
   });
-  const recordedDates = new Set(records.map(day => day.workdayDate.toISOString().slice(0, 10)));
+  const plannedDates = new Set(records.map(day => day.workdayDate.toISOString().slice(0, 10)));
+  const focusedDates = new Set(records.filter(day=>day.items.some(item=>item.focusSessions.length>0)).map(day=>day.workdayDate.toISOString().slice(0,10)));
   const dayCount = new Date(Date.UTC(monthStart.getUTCFullYear(), monthStart.getUTCMonth() + 1, 0)).getUTCDate();
   const days = Array.from({ length: dayCount }, (_, index) => {
     const key = `${monthKey}-${String(index + 1).padStart(2, "0")}`;
-    return { key, hasWorkday: recordedDates.has(key), selected: key === selectedKey, today: key === todayKey };
+    return { key, hasWorkday: plannedDates.has(key), hasFocusRecord: focusedDates.has(key), hasPlan: plannedDates.has(key), selected: key === selectedKey, today: key === todayKey };
   });
   const isToday = selectedKey === todayKey;
   const isPast = selectedKey < todayKey;
