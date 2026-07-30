@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   ApprovedSchedulePresentation,
-  formatScheduleEyebrow,
   type ScheduleDay,
   type ScheduleItem,
   type ScheduleLocale,
   type ScheduleOption,
   type ScheduleSearchItem,
 } from "@/presentation/schedule/schedule-view";
+import { formatScheduleEyebrow } from "@/presentation/schedule/format-schedule-date";
 import { ApprovedFocusPresentation } from "@/presentation/focus/focus-view";
 
 type FixtureState = {

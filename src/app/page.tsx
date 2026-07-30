@@ -4,7 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n";
 import { dateKeyToDate, getWorkdayDate } from "@/lib/workday-date";
 import { ownedWorkdayWhere } from "@/lib/auth";
-import { ApprovedSchedulePresentation, formatScheduleEyebrow, type ScheduleItem, type ScheduleSearchItem } from "@/presentation/schedule/schedule-view";
+import { ApprovedSchedulePresentation, type ScheduleItem, type ScheduleSearchItem } from "@/presentation/schedule/schedule-view";
+import { formatScheduleEyebrow } from "@/presentation/schedule/format-schedule-date";
 import {
   changeScheduleLocale,
   archiveScheduleTask,
