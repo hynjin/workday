@@ -117,6 +117,7 @@ export function ApprovedSchedulePresentation(props:{
   recordedFocusSeconds?:number;
   refreshAfterLocaleChange?:boolean;
   refreshAfterMutation?:boolean;
+  navigationBasePath?:string;
 }) {
   const t=labels[props.locale], router=useRouter();
   const selectDate=(date:string)=>{
@@ -146,7 +147,8 @@ export function ApprovedSchedulePresentation(props:{
   const dateResult=isPast
     ? (props.locale==="ko"?`${props.items.length}개 중 ${done}개 완료 · ${completionPercent}%`:`${done} of ${props.items.length} complete · ${completionPercent}%`)
     : (props.locale==="ko"?`예정 작업 ${props.items.length}개`:`${props.items.length} scheduled ${props.items.length===1?"task":"tasks"}`);
-  const nav=[["calendar","/",t.schedule],["tasks","/tasks",t.tasks],["grid","/areas",t.areas],["folder","/projects",t.projects],["chart","/growth",t.reports],["archive","/archive",t.archive]];
+  const base=props.navigationBasePath??"";
+  const nav=[["calendar",base?`${base}/schedule`:"/",t.schedule],["tasks",`${base}/tasks`,t.tasks],["grid",`${base}/areas`,t.areas],["folder",`${base}/projects`,t.projects],["chart",`${base}/reports`,t.reports],["archive",`${base}/archive`,t.archive]];
   const drop=(event:DragEvent,index:number)=>{event.preventDefault();const id=dragItem.current;dragItem.current=null;if(id)startTransition(async()=>{await props.onReorder(id,index);if(props.refreshAfterMutation!==false)router.refresh();});};
   const runItemAction=(action:FormAction,itemId:string)=>startTransition(async()=>{
     const formData=new FormData();
@@ -156,7 +158,7 @@ export function ApprovedSchedulePresentation(props:{
   });
   return <div className={styles.root}><ApprovedIconSprite/><div className={styles.shell}>
     <aside className={styles.sidebar}>
-      <Link className={styles.brand} href="/"><span className={styles.brandMark}><Icon name="weather"/></span><strong>Workday</strong></Link>
+      <Link className={styles.brand} href={base?`${base}/schedule`:"/"}><span className={styles.brandMark}><Icon name="weather"/></span><strong>Workday</strong></Link>
       <nav className={styles.nav}>{nav.map(([icon,href,label],index)=><button key={href} className={`${styles.navItem} ${index===0?styles.navItemActive:""}`} type="button" onClick={()=>router.push(href)}><Icon name={icon}/><span>{label}</span></button>)}</nav>
       <button className={styles.search} type="button" onClick={()=>setSearchModal(true)}><Icon name="search"/><span>{t.search}</span></button>
       <div className={styles.sidebarBottom}>

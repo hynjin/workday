@@ -1,7 +1,5 @@
-import { ScheduleFixturePreview } from "./schedule-fixture-preview";
-
-export const dynamic = "force-static";
+import { redirect } from "next/navigation";
 
 export default function UiPreviewPage() {
-  return <ScheduleFixturePreview/>;
+  redirect("/ui-preview/schedule");
 }

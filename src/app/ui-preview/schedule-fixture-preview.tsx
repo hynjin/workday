@@ -193,6 +193,7 @@ export function ScheduleFixturePreview() {
       onSelectDate={selectDate} onSelectMonth={selectMonth}
       refreshAfterLocaleChange={false}
       refreshAfterMutation={false}
+      navigationBasePath="/ui-preview"
     />
     <div className="focus-toast-stack" aria-live="polite" aria-atomic="false">{toasts.map(toast=><div className="focus-toast is-visible" role="status" key={toast.id}><span><svg><use href="#i-check"/></svg></span><div><strong>{state.locale==="ko"?"집중 시간이 기록됐어요":"Focus time recorded"}</strong><small>{state.locale==="ko"?`오늘 집중 기록에 ${toast.seconds<60?`${toast.seconds}초를`:`${Math.floor(toast.seconds/60)}분을`} 추가했어요.`:`Added ${toast.seconds<60?`${toast.seconds}s`:`${Math.floor(toast.seconds/60)}m`} to today's focus record.`}</small></div></div>)}</div>
   </div>;
