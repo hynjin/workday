@@ -29,8 +29,8 @@ const options:ScheduleOption[] = [
   {id:"area-life",title:"생활",color:"peach",kind:"area"},
 ];
 const initialItems:ScheduleItem[] = [
-  {id:"fixture-1",taskId:"task-1",title:"주간 리뷰 정리",status:"planned",projectTitle:"워크데이 개선",locationColor:"sky",priority:"high",estimatedMinutes:45,dailyGoalMinutes:45,projectId:"project-workday",areaId:null,repeat:"weekly",scheduledDates:["2026-07-24",TODAY]},
-  {id:"fixture-2",taskId:"task-2",title:"아침 스트레칭",status:"completed",projectTitle:"건강",locationColor:"mint",priority:"low",estimatedMinutes:15,dailyGoalMinutes:15,projectId:null,areaId:"area-health",repeat:"daily",scheduledDates:[TODAY]},
+  {id:"fixture-1",taskId:"task-1",title:"주간 리뷰 정리",status:"planned",projectTitle:"워크데이 개선",locationColor:"sky",priority:"high",estimatedMinutes:45,dailyGoalMinutes:45,focusedSeconds:2520,projectId:"project-workday",areaId:null,repeat:"weekly",scheduledDates:["2026-07-24",TODAY]},
+  {id:"fixture-2",taskId:"task-2",title:"아침 스트레칭",status:"completed",projectTitle:"건강",locationColor:"mint",priority:"low",estimatedMinutes:15,dailyGoalMinutes:15,focusedSeconds:900,projectId:null,areaId:"area-health",repeat:"daily",scheduledDates:[TODAY]},
   {id:"fixture-3",taskId:"task-3",title:"포트폴리오 문구 다듬기",status:"planned",projectTitle:"포트폴리오",locationColor:"lilac",priority:"normal",estimatedMinutes:80,dailyGoalMinutes:80,projectId:"project-portfolio",areaId:null,repeat:"none",scheduledDates:[TODAY,"2026-07-30"]},
   {id:"fixture-4",taskId:"task-4",title:"병원 예약 확인",status:"planned",projectTitle:"생활",locationColor:"peach",priority:"normal",estimatedMinutes:null,dailyGoalMinutes:null,projectId:null,areaId:"area-life",repeat:"none",scheduledDates:["2026-07-24",TODAY]},
 ];
@@ -130,7 +130,7 @@ export function ScheduleFixturePreview() {
     const option=localizedOptions.find(item=>`${item.kind}:${item.id}`===location);
     const dates=parsedDates(form,[state.selectedDate]);
     const goalMinutes=form.get("estimatedMinutes")?Number(form.get("estimatedMinutes")):null;
-    const item:ScheduleItem={id:nextId(),taskId:nextId(),title:String(form.get("title")??"").trim(),status:"planned",projectTitle:option?.title??null,locationColor:option?.color??"sky",priority:String(form.get("priority")??"normal") as ScheduleItem["priority"],estimatedMinutes:goalMinutes,dailyGoalMinutes:goalMinutes,projectId:option?.kind==="project"?option.id:null,areaId:option?.kind==="area"?option.id:null,repeat:String(form.get("repeat")??"none") as ScheduleItem["repeat"],scheduledDates:dates};
+    const item:ScheduleItem={id:nextId(),taskId:nextId(),title:String(form.get("title")??"").trim(),status:"planned",projectTitle:option?.title??null,locationColor:option?.color??"sky",priority:String(form.get("priority")??"normal") as ScheduleItem["priority"],estimatedMinutes:goalMinutes,dailyGoalMinutes:goalMinutes,focusedSeconds:0,projectId:option?.kind==="project"?option.id:null,areaId:option?.kind==="area"?option.id:null,repeat:String(form.get("repeat")??"none") as ScheduleItem["repeat"],scheduledDates:dates};
     if(item.title)update(items=>[...items,item]);
   };
   const editTask=async(form:FormData)=>{

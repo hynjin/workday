@@ -40,6 +40,7 @@ export type SchedulePriority = "low" | "normal" | "high";
 export type ScheduleItem = {
   id:string; taskId:string|null; title:string; status:"planned"|"completed"; projectTitle:string|null; locationColor:string;
   priority:SchedulePriority; estimatedMinutes:number|null; dailyGoalMinutes:number|null;
+  focusedSeconds?:number;
   projectId:string|null; areaId:string|null; repeat:"none"|"daily"|"weekly"|"monthly";
   scheduledDates?:string[];
 };
@@ -180,7 +181,7 @@ export function ApprovedSchedulePresentation(props:{
         {props.items.length?<div className={styles.taskList} aria-busy={pending}>{props.items.map((item,index)=><article key={item.id} draggable={false} className={`${styles.taskRow} ${item.status==="completed"?styles.complete:""}`} onDragOver={event=>props.actionable&&event.preventDefault()} onDrop={event=>props.actionable&&drop(event,index)} onPointerUp={()=>{if(pointerDrag&&pointerDrag!==item.id){startTransition(async()=>{await props.onReorder(pointerDrag,index);if(props.refreshAfterMutation!==false)router.refresh();});}setPointerDrag(null);}}>
           <span className={styles.drag} draggable={props.actionable} tabIndex={props.actionable?0:undefined} role={props.actionable?"button":undefined} onPointerDown={()=>props.actionable&&setPointerDrag(item.id)} onDragStart={event=>{if(!props.actionable)return;dragItem.current=item.id;event.dataTransfer.effectAllowed="move";}} aria-label={props.locale==="ko"?"작업 순서 변경":"Reorder task"}><Icon name="grip" size={14}/></span>
           {props.actionable?<form action={props.onComplete}><input type="hidden" name="itemId" value={item.id}/><button className={styles.checkbox} aria-label={item.status==="completed"?(props.locale==="ko"?"완료 취소":"Undo completion"):(props.locale==="ko"?"완료":"Complete")}>{item.status==="completed"&&<Icon name="check" size={14}/>}</button></form>:<span/>}
-          <button className={styles.taskMain} type="button" disabled={!props.actionable||item.status==="completed"} onClick={()=>runItemAction(props.onStartFocus,item.id)}><strong>{item.title}</strong><small><i className={`${styles.dot} ${styles[item.locationColor]??styles.gray}`}/><span>{item.projectTitle??t.inbox}</span><span aria-hidden="true">·</span><span>{item.status==="completed"?t.done:item.dailyGoalMinutes?formatMinutes(item.dailyGoalMinutes,props.locale):t.noEstimate}</span></small></button>
+          <button className={styles.taskMain} type="button" disabled={!props.actionable||item.status==="completed"} onClick={()=>runItemAction(props.onStartFocus,item.id)}><strong>{item.title}</strong><small><i className={`${styles.dot} ${styles[item.locationColor]??styles.gray}`}/><span>{item.projectTitle??t.inbox}</span><span aria-hidden="true">·</span><span>{taskTimeMeta(item,props.locale)}</span></small></button>
           <button className={styles.play} type="button" disabled={!props.actionable||item.status==="completed"} aria-label={props.locale==="ko"?"집중 시작":"Start focus"} onClick={()=>runItemAction(props.onStartFocus,item.id)}><Icon name="play"/></button>
           <span className={`${styles.priority} ${styles[item.priority]}`}>{t[item.priority]}</span>
           <div className={styles.more} data-schedule-menu><button className={`${styles.iconButton} menu-trigger`} type="button" aria-label={props.locale==="ko"?"작업 메뉴":"Task menu"} onClick={event=>{if(openMenu===item.id){setOpenMenu(null);return;}const rect=event.currentTarget.getBoundingClientRect();setMenuPosition({top:Math.min(window.innerHeight-130,rect.bottom+5),left:Math.max(8,rect.right-170)});setOpenMenu(item.id);}}><Icon name="more"/></button>{openMenu===item.id&&<div className={`${styles.menu} popover`} style={menuPosition??undefined}>{item.taskId&&<button type="button" onClick={()=>{setEditingItem(item);setOpenMenu(null);}}><Icon name="edit"/><span>{t.edit}</span></button>}<button type="button" onClick={()=>{if(item.taskId)runItemAction(props.onArchiveTask,item.taskId);setOpenMenu(null);}}><Icon name="archive"/><span>{props.locale==="ko"?"보관":"Archive"}</span></button><button type="button" className={styles.danger} onClick={()=>{runItemAction(props.onDeleteTask,item.id);setOpenMenu(null);}}><Icon name="trash"/><span>{props.locale==="ko"?"삭제":"Delete"}</span></button></div>}</div>
@@ -273,5 +274,12 @@ function SearchModal({locale,items,onClose}:{locale:Locale;items:SearchItem[];on
 }
 
 function formatMinutes(value:number,locale:Locale){const h=Math.floor(value/60),m=value%60;return locale==="ko"?[h?`${h}시간`:"",m?`${m}분`:""].filter(Boolean).join(" "):[h?`${h}h`:"",m?`${m}m`:""].filter(Boolean).join(" ");}
+function formatFocusedTime(seconds:number,locale:Locale){return seconds<60?(locale==="ko"?`${seconds}초`:`${seconds}s`):formatMinutes(Math.floor(seconds/60),locale);}
+function taskTimeMeta(item:Item,locale:Locale){
+  const parts:string[]=[];
+  if(item.dailyGoalMinutes)parts.push(locale==="ko"?`목표 ${formatMinutes(item.dailyGoalMinutes,locale)}`:`Goal ${formatMinutes(item.dailyGoalMinutes,locale)}`);
+  if(item.focusedSeconds)parts.push(locale==="ko"?`집중 ${formatFocusedTime(item.focusedSeconds,locale)}`:`Focused ${formatFocusedTime(item.focusedSeconds,locale)}`);
+  return parts.length?parts.join(" · "):(locale==="ko"?"목표 없음":"No goal");
+}
 function formatDate(key:string,locale:Locale){const date=new Date(`${key}T00:00:00Z`);return new Intl.DateTimeFormat(locale==="ko"?"ko-KR":"en-CA",{timeZone:"UTC",month:"short",day:"numeric"}).format(date);}
 function focusRecordedMessage(seconds:number,locale:Locale){const minutes=Math.floor(seconds/60),remainder=seconds%60;if(locale==="en")return `Added ${minutes?`${minutes}m`:`${remainder}s`} to today's focus record.`;const value=minutes?`${minutes}분`:`${remainder}초`;return `오늘 집중 기록에 ${value}${minutes?"을":"를"} 추가했어요.`;}

@@ -106,6 +106,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
     priority: item.priority,
     estimatedMinutes: item.estimatedMinutes,
     dailyGoalMinutes: item.dailyGoalMinutes,
+    focusedSeconds: item.seconds,
     projectId: item.projectId,
     areaId: item.areaId,
     repeat: item.repeat,
