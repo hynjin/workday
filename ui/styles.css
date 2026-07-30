@@ -408,6 +408,8 @@ svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7;
 .select-trigger { display:flex; align-items:center; justify-content:space-between; width:100%; padding:10px 11px; border:1px solid var(--line); border-radius:10px; background:#fff; color:var(--ink); }
 .select-trigger>span { display:flex; align-items:center; gap:8px; }.select-trigger b { font-size:11px; font-weight:500; }
 .select-trigger svg { width:14px; height:14px; }
+.select-trigger:disabled { background:var(--soft); color:#aab4bb; cursor:default; }
+.select-trigger:disabled b,.select-trigger:disabled svg { color:#aab4bb; }
 .select-menu { position:absolute; top:calc(100% + 6px); right:0; left:0; z-index:10; padding:7px; border:1px solid var(--line); border-radius:11px; background:#fff; box-shadow:0 14px 34px rgba(51,79,97,.13); }
 .select-menu.is-floating { position:fixed; inset:auto; z-index:220; }
 .select-menu>button { display:flex; align-items:center; gap:8px; width:100%; padding:8px; border:0; border-radius:8px; background:transparent; color:var(--ink); font-size:11px; text-align:left; }
