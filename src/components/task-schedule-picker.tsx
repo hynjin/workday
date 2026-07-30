@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { scheduleTaskForDate, unscheduleTask } from "@/lib/actions";
 import type { Locale } from "@/lib/i18n";
 import { dateKeyToDate, getWorkdayDate, nextDate } from "@/lib/workday-date";
+import { WorkdayIcon } from "@/components/workday-icon";
 
 export function TaskSchedulePicker({ taskId, locale, compact = false, scheduledItem = null }: {
   taskId: string;
@@ -49,7 +50,7 @@ export function TaskSchedulePicker({ taskId, locale, compact = false, scheduledI
 
   return <div className={`wd-schedule-picker ${compact ? "is-compact" : ""}`} aria-busy={pending} ref={rootRef}>
     <button type="button" className="wd-schedule-trigger" disabled={pending} aria-expanded={open} onClick={() => setOpen(value => !value)}>
-      <span aria-hidden="true">▣</span>{scheduledItem?.date ?? (locale === "ko" ? "일정" : "Schedule")}
+      <WorkdayIcon name="calendarDays" size={14}/>{scheduledItem?.date ?? (locale === "ko" ? "일정" : "Schedule")}
     </button>
     {open && <div className="wd-schedule-menu">
       <button type="button" disabled={pending} onClick={() => schedule(today)}>{locale === "ko" ? "오늘" : "Today"}</button>

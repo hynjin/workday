@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState, useTransition } from "react";
 import { endFocus } from "@/lib/actions";
 import { formatDuration } from "@/lib/workday-date";
+import { WorkdayIcon } from "@/components/workday-icon";
 
 export default function FocusTimer({ sessionId, title, startedAt, previousSeconds, goalMinutes, location, color, locale }: {
   sessionId: string;
@@ -32,7 +33,7 @@ export default function FocusTimer({ sessionId, title, startedAt, previousSecond
   });
   const progress = goalMinutes ? Math.min(100, Math.round(elapsed / (goalMinutes * 60) * 100)) : 0;
   return <section className="focusShell">
-    <header className="focusTopbar"><div className="appBrand"><span className="appMark">☁</span><strong>Workday</strong></div><span className="focusStatus">{locale === "ko" ? "집중 중" : "Focusing"}</span></header>
+    <header className="focusTopbar"><div className="appBrand"><span className="appMark"><WorkdayIcon name="cloud" size={18}/></span><strong>Workday</strong></div><span className="focusStatus">{locale === "ko" ? "집중 중" : "Focusing"}</span></header>
     {recorded === null ? <main className="focusContent">
       <span className="focusLocation"><i className={`colorDot ${color}`}/>{location}</span>
       <h1>{title}</h1>

@@ -36,6 +36,83 @@
   --danger:var(--wd-danger);
 }
 
+/* The static prototype in /ui is the visual source of truth. */
+.wd-app { font-family:Inter,"Noto Sans KR",system-ui,sans-serif; }
+.wd-brand strong { font-size:15px; }
+.wd-nav a,.wd-nav-utility { font-size:12px; }
+.wd-nav-search input { font-size:12px; }
+.wd-page-head { margin-bottom:23px; }
+.wd-page-head h1 { margin:4px 0 7px; font-size:26px; }
+.wd-eyebrow { font-size:10px; letter-spacing:.12em; }
+.wd-muted { font-size:13px; }
+.wd-button { font-size:12px; }
+.wd-schedule-layout { grid-template-columns:minmax(0,1fr) 260px; gap:25px; }
+.wd-day-summary { padding:17px 18px; }
+.wd-day-summary strong { font-size:13px; }
+.wd-day-summary span { font-size:11px; }
+.wd-section-head h2 { font-size:14px; }
+.wd-calendar header strong { font-size:12px; }
+.wd-weekday { font-size:9px; }
+.wd-calendar-grid>a { font-size:10px; }
+.wd-task { min-height:70px; padding:9px 4px; }
+.wd-task-title button,.wd-task-title h3 { font-size:13px; }
+.wd-task-meta { margin-top:6px!important; font-size:10px!important; }
+.wd-priority { font-size:10px; }
+.wd-directory-row { min-height:69px; }
+.wd-directory-copy>strong { font-size:13px; }
+.wd-directory-copy>div { font-size:10px; }
+.wd-tabs a { font-size:11px; }
+.wd-schedule-trigger { font-size:10px; }
+.wd-detail-title h2 { font-size:20px; }
+.wd-stats span,.wd-project-summary span { font-size:10px; }
+.wd-stats strong,.wd-project-summary strong { font-size:15px; font-weight:500; }
+.wd-content-head h3 { font-size:13px; }
+.wd-project-grid>a { font-size:12px; }
+.wd-project-grid small,.wd-area-task>div:first-child span { font-size:9px; }
+.wd-area-task>div:first-child strong { font-size:12px; }
+
+.wd-more-menu>summary { width:31px; height:31px; padding:0; border:0; background:transparent; color:var(--wd-sub); }
+.wd-more-menu>summary:hover { background:var(--wd-soft); }
+.wd-more-menu>div { width:170px; }
+.wd-more-menu>div button { display:flex; align-items:center; gap:8px; font-size:11px; }
+.wd-more-menu .dangerText { color:var(--wd-danger); }
+
+.wd-dialog-layer { padding:14px; background:rgba(38,49,59,.22); }
+.wd-dialog { width:min(390px,100%); max-height:min(720px,calc(100vh - 28px)); overflow:visible; border:0; border-radius:20px; box-shadow:0 28px 85px rgba(38,49,59,.2); }
+.wd-task-dialog { width:min(510px,100%); }
+.wd-dialog>header { padding:18px 20px 15px; }
+.wd-dialog>header h2 { font-size:16px; }
+.wd-dialog>header p { margin:4px 0 0; color:var(--wd-sub); font-size:11px; }
+.wd-dialog>header button { width:31px; height:31px; }
+.wd-dialog-body { padding:18px 20px; }
+.wd-field>span,.wd-swatches legend { font-size:11px; }
+.wd-field input,.wd-field select { min-height:39px; font-size:12px; }
+.wd-swatches label { width:34px; height:34px; border:0; }
+.wd-swatches label:has(input:checked) { box-shadow:inset 0 0 0 2px #fff,0 0 0 2px var(--wd-sky); }
+.wd-swatches .wd-dot { width:15px; height:15px; }
+
+.quickAddForm { width:min(510px,calc(100vw - 28px)); max-height:min(720px,calc(100vh - 28px)); border:0; border-radius:20px; box-shadow:0 28px 85px rgba(38,49,59,.2); }
+.quickAddHeader { padding:18px 20px 15px; }
+.quickAddHeader strong { font-size:16px; }
+.quickAddHeader small { margin-top:4px; font-size:11px; }
+.quickAddBody { padding:18px 20px; }
+.quickTaskName { font-size:18px!important; font-weight:500; }
+.quickLabel { font-size:11px; }
+.quickSelectTrigger { min-height:40px; font-size:12px; }
+.quickSelectMenu { border-radius:11px; box-shadow:0 14px 36px rgba(51,79,97,.14); }
+.quickSelectMenu button { font-size:11px; }
+.quickDuration input { appearance:textfield; -moz-appearance:textfield; font-size:15px!important; font-variant-numeric:tabular-nums; }
+.quickDuration input::-webkit-inner-spin-button,.quickDuration input::-webkit-outer-spin-button { appearance:none; margin:0; }
+.quickPriority { width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.quickPriority label { width:100%; }
+.quickCalendar { width:min(310px,100%); margin-inline:auto; }
+.wd-inline-calendar>div { gap:2px; }
+.wd-inline-calendar>div button { max-height:34px; }
+.railCollapsed .railCollapse svg { transform:rotate(180deg); }
+.railCollapse svg { transition:transform .2s ease; }
+.wd-rail-head { height:34px; }
+.wd-board-drag { display:grid; place-items:center; }
+
 body:has(.wd-app) { margin:0; background:#f3f7f9; color:var(--wd-ink); }
 .wd-app,.wd-app * { box-sizing:border-box; }
 .wd-app {
@@ -122,8 +199,9 @@ body:has(.wd-app) { margin:0; background:#f3f7f9; color:var(--wd-ink); }
 .wd-day-summary span { color:var(--wd-sub); font-size:.78rem; }
 .wd-day-progress { width:120px; height:7px; overflow:hidden; border-radius:999px; background:rgba(255,255,255,.8); }
 .wd-day-progress i { display:block; height:100%; border-radius:inherit; background:var(--wd-sky-deep); }
-.wd-section-head { padding-bottom:9px; border-bottom:1px solid var(--wd-line); }
+.wd-section-head { display:flex; align-items:center; justify-content:space-between; gap:12px; padding-bottom:9px; border-bottom:1px solid var(--wd-line); }
 .wd-section-head h2 { margin:0; font-size:.98rem; font-weight:600; }
+.wd-section-head>span { color:var(--wd-sub); font-size:11px; }
 .wd-calendar-side { position:sticky; top:20px; }
 .wd-calendar { padding:16px; border:1px solid var(--wd-line); border-radius:16px; background:var(--wd-paper); }
 .wd-calendar header { display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
@@ -263,11 +341,16 @@ body:has(.wd-app) { margin:0; background:#f3f7f9; color:var(--wd-ink); }
 .wd-mode-tabs button.is-active { background:#fff; color:var(--wd-ink); box-shadow:0 2px 8px rgba(51,79,97,.06); }
 .wd-search-field { position:relative; display:flex; align-items:center; gap:7px; padding:9px 10px; border:1px solid var(--wd-line); border-radius:10px; color:var(--wd-sub); }
 .wd-search-field input { min-width:0; flex:1; padding:0; border:0; outline:0; }
+.wd-project-picker { position:relative; }
 .wd-project-picker>div { max-height:220px; margin-top:7px; overflow:auto; }
 .wd-project-picker form { margin:0; }
 .wd-project-picker form button { display:flex; align-items:center; justify-content:space-between; width:100%; padding:9px 10px; border:0; border-radius:8px; background:transparent; color:var(--wd-ink); }
 .wd-project-picker form button:hover { background:var(--wd-soft); }
 .wd-project-picker form span { display:flex; align-items:center; gap:7px; }
+.wd-project-options { position:absolute; z-index:30; width:calc(100% - 40px); max-height:220px!important; margin-top:6px!important; padding:7px; overflow:auto; border:1px solid var(--wd-line); border-radius:11px; background:#fff; box-shadow:0 14px 36px rgba(51,79,97,.14); }
+.wd-project-options>div button { display:flex; align-items:center; width:100%; padding:8px; border:0; border-radius:8px; background:transparent; color:var(--wd-ink); text-align:left; }
+.wd-project-options>div button:hover { background:var(--wd-sky-soft); }
+.wd-project-options>div button span { display:flex; align-items:center; gap:8px; }
 .wd-field-spaced { margin-top:16px; }
 .wd-field select { width:100%; padding:10px 34px 10px 11px; border:1px solid var(--wd-line); border-radius:10px; outline:0; background:#fff; color:var(--wd-ink); }
 .wd-compact-plus { padding:7px 9px; border:0; border-radius:8px; background:transparent; color:var(--wd-sub); font-size:.72rem; cursor:pointer; }
@@ -325,11 +408,11 @@ body:has(.wd-app) { margin:0; background:#f3f7f9; color:var(--wd-ink); }
 .wd-report .reportSegments a.active { background:#fff; color:var(--wd-ink); box-shadow:0 2px 8px rgba(51,79,97,.06); }
 .wd-report .weekNavigator { display:flex; align-items:center; gap:8px; }
 .wd-report .weekNavigator strong { min-width:170px; font-size:.72rem; font-weight:600; text-align:center; }
-.wd-report .weekNavigator .button { display:grid; width:31px; height:31px; place-items:center; padding:0; overflow:hidden; border:0; border-radius:8px; background:var(--wd-soft); color:transparent; text-decoration:none; }
-.wd-report .weekNavigator .button:first-child::after { content:"‹"; color:var(--wd-sub); font-size:1rem; }
-.wd-report .weekNavigator .button:last-child::after { content:"›"; color:var(--wd-sub); font-size:1rem; }
+.wd-report .weekNavigator .button { display:grid; width:31px; height:31px; place-items:center; padding:0; overflow:hidden; border:0; border-radius:8px; background:var(--wd-soft); color:var(--wd-sub); text-decoration:none; }
 .wd-report .reportTimeSummary { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; margin-bottom:12px; }
 .wd-report .reportTimeSummary article { padding:12px 3px; border:0; border-bottom:2px solid var(--wd-sky-soft); border-radius:0; background:transparent; }
+.wd-report .reportTimeSummary article:nth-child(2) { border-bottom-color:var(--wd-butter-soft); }
+.wd-report .reportTimeSummary article:nth-child(3) { border-bottom-color:var(--wd-mint-soft); }
 .wd-report .reportTimeSummary article::after { display:none; }
 .wd-report .reportTimeSummary article:nth-child(2)::after { background:var(--wd-butter-soft); }
 .wd-report .reportTimeSummary article:nth-child(3)::after { background:var(--wd-mint-soft); }
@@ -376,6 +459,10 @@ body:has(.wd-app) { margin:0; background:#f3f7f9; color:var(--wd-ink); }
 .wd-report .completionRow>i>b { display:block; height:100%; border-radius:inherit; background:var(--wd-mint); }
 .wd-report .completionRow>strong { text-align:right; }
 .wd-report .reportRanking h2,.wd-report .completedReport h2 { margin:0 0 8px; font-size:.82rem; }
+.wd-report .reportRankingHead>span { display:flex; align-items:center; gap:6px; color:var(--wd-sub); }
+.wd-report .reportRankingHead a { display:grid; width:28px; height:28px; place-items:center; border-radius:8px; color:var(--wd-sub); }
+.wd-report .reportRankingHead a:hover { background:var(--wd-soft); color:var(--wd-ink); }
+.wd-report .reportRankingHead a.is-ascending svg { transform:scaleX(-1); }
 .wd-report .reportRanking>div:not(.reportRankingHead),.wd-report .completedReport>div { display:flex; justify-content:space-between; gap:10px; padding:7px 0; border-top:1px solid var(--wd-line); font-size:.68rem; }
 .wd-search-hero { display:flex; gap:8px; margin-bottom:22px; }
 .wd-search-hero input { min-width:0; flex:1; padding:11px 13px; border:1px solid var(--wd-line); border-radius:11px; outline:0; }
@@ -606,3 +693,66 @@ body:has(.wd-app) { margin:0; background:#f3f7f9; color:var(--wd-ink); }
   .authShell { padding:16px; }
   .authLanguage { top:10px; right:10px; }
 }
+
+/* Final prototype parity layer. Keep this after all base and responsive rules. */
+.wd-app { font-family:Inter,"Noto Sans KR",system-ui,sans-serif; }
+.wd-app .wd-brand strong { font-size:15px; }
+.wd-app .wd-nav a,.wd-app .wd-nav-utility { font-size:12px; }
+.wd-app .wd-nav-search input { font-size:12px; }
+.wd-app .wd-page-head { margin-bottom:23px; }
+.wd-app .wd-page-head h1 { margin:4px 0 7px; font-size:26px; }
+.wd-app .wd-eyebrow { font-size:10px; letter-spacing:.12em; }
+.wd-app .wd-muted { font-size:13px; }
+.wd-app .wd-button { font-size:12px; }
+.wd-app .wd-schedule-layout { grid-template-columns:minmax(0,1fr) 260px; gap:25px; }
+.wd-app .wd-day-summary { padding:17px 18px; }
+.wd-app .wd-day-summary strong { font-size:13px; }
+.wd-app .wd-day-summary span { font-size:11px; }
+.wd-app .wd-section-head h2 { font-size:14px; }
+.wd-app .wd-calendar header strong { font-size:12px; }
+.wd-app .wd-weekday { font-size:9px; }
+.wd-app .wd-calendar-grid>a { font-size:10px; }
+.wd-app .wd-task { min-height:70px; padding:9px 4px; }
+.wd-app .wd-task-title button,.wd-app .wd-task-title h3 { font-size:13px; }
+.wd-app .wd-task-meta { margin-top:6px!important; font-size:10px!important; }
+.wd-app .wd-priority { font-size:10px; }
+.wd-app .wd-directory-row { min-height:69px; }
+.wd-app .wd-directory-copy>strong { font-size:13px; }
+.wd-app .wd-directory-copy>div { font-size:10px; }
+.wd-app .wd-tabs a { font-size:11px; }
+.wd-app .wd-schedule-trigger { font-size:10px; }
+.wd-app .wd-detail-title h2 { font-size:20px; }
+.wd-app .wd-stats span,.wd-app .wd-project-summary span { font-size:10px; }
+.wd-app .wd-stats strong,.wd-app .wd-project-summary strong { font-size:15px; font-weight:500; }
+.wd-app .wd-content-head h3 { font-size:13px; }
+.wd-app .wd-project-grid>a { font-size:12px; }
+.wd-app .wd-project-grid small,.wd-app .wd-area-task>div:first-child span { font-size:9px; }
+.wd-app .wd-area-task>div:first-child strong { font-size:12px; }
+.wd-more-menu>summary { width:31px; height:31px; padding:0; border:0; background:transparent; color:var(--wd-sub); }
+.wd-more-menu>summary:hover { background:var(--wd-soft); }
+.wd-more-menu>div { width:170px; }
+.wd-more-menu>div button { display:flex; align-items:center; gap:8px; font-size:11px; }
+.wd-dialog-layer { padding:14px; background:rgba(38,49,59,.22); }
+.wd-dialog { width:min(390px,100%); max-height:min(720px,calc(100vh - 28px)); border:0; border-radius:20px; box-shadow:0 28px 85px rgba(38,49,59,.2); }
+.wd-task-dialog { width:min(510px,100%); }
+.wd-dialog>header { padding:18px 20px 15px; }
+.wd-dialog>header h2 { font-size:16px; }
+.wd-dialog-body { padding:18px 20px; }
+.wd-field>span,.wd-swatches legend { font-size:11px; }
+.wd-field input,.wd-field select { min-height:39px; font-size:12px; }
+.quickAddForm { width:min(510px,calc(100vw - 28px)); max-height:min(720px,calc(100vh - 28px)); border:0; border-radius:20px; box-shadow:0 28px 85px rgba(38,49,59,.2); }
+.quickAddHeader { padding:18px 20px 15px; }
+.quickAddHeader strong { font-size:16px; }
+.quickAddHeader small { margin-top:4px; font-size:11px; }
+.quickAddBody { padding:18px 20px; }
+.quickTaskName { font-size:18px!important; font-weight:500; }
+.quickLabel { font-size:11px; }
+.quickSelectTrigger { min-height:40px; font-size:12px; }
+.quickSelectMenu button { font-size:11px; }
+.quickDuration input { appearance:textfield; -moz-appearance:textfield; font-size:15px!important; }
+.quickDuration input::-webkit-inner-spin-button,.quickDuration input::-webkit-outer-spin-button { appearance:none; margin:0; }
+.quickPriority { width:100%; grid-template-columns:repeat(3,minmax(0,1fr)); }
+.quickPriority label { width:100%; }
+.quickCalendar { width:min(310px,100%); margin-inline:auto; }
+.railCollapsed .railCollapse svg { transform:rotate(180deg); }
+.railCollapse svg { transition:transform .2s ease; }

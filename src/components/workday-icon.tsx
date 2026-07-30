@@ -1,8 +1,9 @@
 export type WorkdayIconName =
-  | "archive" | "areas" | "calendar" | "chevronDown" | "chevronLeft"
-  | "chevronRight" | "close" | "cloud" | "focus" | "language"
-  | "logout" | "more" | "plus" | "projects" | "reports" | "search"
-  | "tasks";
+  | "archive" | "areas" | "board" | "calendar" | "calendarDays"
+  | "calendarOff" | "check" | "chevronDown" | "chevronLeft"
+  | "chevronRight" | "close" | "cloud" | "edit" | "focus" | "grip"
+  | "language" | "list" | "logout" | "more" | "plus" | "projects"
+  | "reports" | "search" | "sort" | "tasks" | "trash";
 
 export function WorkdayIcon({ name, size = 18 }: { name: WorkdayIconName; size?: number }) {
   const props = {
@@ -12,6 +13,9 @@ export function WorkdayIcon({ name, size = 18 }: { name: WorkdayIconName; size?:
   };
   switch (name) {
     case "calendar": return <svg {...props}><path d="M7 3v3M17 3v3M4 9h16"/><rect x="4" y="5" width="16" height="16" rx="3"/><path d="m9 15 2 2 4-5"/></svg>;
+    case "calendarDays": return <svg {...props}><path d="M8 2v4m8-4v4M3 10h18M5 4h14a2 2 0 0 1 2 2v15H3V6a2 2 0 0 1 2-2Z"/><path d="M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/></svg>;
+    case "calendarOff": return <svg {...props}><path d="M8 2v4m8-4v4M3 10h7m4 0h7M5 4h14a2 2 0 0 1 2 2v11M3 6v15h14"/><path d="m3 3 18 18"/></svg>;
+    case "check": return <svg {...props}><path d="m5 12 4 4 10-10"/></svg>;
     case "tasks": return <svg {...props}><path d="m5 7 1.5 1.5L9 5.5M12 7h7M5 13l1.5 1.5L9 11.5M12 13h7M5 19l1.5 1.5L9 17.5M12 19h7"/></svg>;
     case "areas": return <svg {...props}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2.5"/></svg>;
     case "projects": return <svg {...props}><path d="M5 6.5h5l1.5 2H19v9H5z"/><path d="M5 6.5v11"/></svg>;
@@ -21,6 +25,12 @@ export function WorkdayIcon({ name, size = 18 }: { name: WorkdayIconName; size?:
     case "language": return <svg {...props}><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.3 2.5 3.5 5.5 3.5 9S14.3 18.5 12 21M12 3C9.7 5.5 8.5 8.5 8.5 12S9.7 18.5 12 21"/></svg>;
     case "logout": return <svg {...props}><path d="M10 5H5v14h5M14 8l4 4-4 4M8 12h10"/></svg>;
     case "plus": return <svg {...props}><path d="M12 5v14M5 12h14"/></svg>;
+    case "edit": return <svg {...props}><path d="m14 5 5 5L8 21H3v-5Zm2-2 5 5"/></svg>;
+    case "trash": return <svg {...props}><path d="M4 7h16M9 3h6l1 4H8Zm-3 4 1 14h10l1-14M10 11v6m4-6v6"/></svg>;
+    case "grip": return <svg {...props}><circle cx="9" cy="6" r="1"/><circle cx="15" cy="6" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="9" cy="18" r="1"/><circle cx="15" cy="18" r="1"/></svg>;
+    case "list": return <svg {...props}><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r=".5"/><circle cx="3.5" cy="12" r=".5"/><circle cx="3.5" cy="18" r=".5"/></svg>;
+    case "board": return <svg {...props}><rect x="3" y="4" width="7" height="16" rx="2"/><rect x="14" y="4" width="7" height="10" rx="2"/></svg>;
+    case "sort": return <svg {...props}><path d="M5 7h10M5 12h7M5 17h4m9-10v10m-3-3 3 3 3-3"/></svg>;
     case "more": return <svg {...props}><circle cx="5" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="12" cy="12" r="1" fill="currentColor" stroke="none"/><circle cx="19" cy="12" r="1" fill="currentColor" stroke="none"/></svg>;
     case "chevronDown": return <svg {...props}><path d="m7 10 5 5 5-5"/></svg>;
     case "chevronLeft": return <svg {...props}><path d="m14 7-5 5 5 5"/></svg>;

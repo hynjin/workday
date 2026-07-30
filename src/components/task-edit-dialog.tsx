@@ -9,6 +9,7 @@ import {
 } from "@/lib/actions";
 import { getWorkdayDate } from "@/lib/workday-date";
 import { DateCalendarPicker } from "@/components/date-calendar-picker";
+import { WorkdayIcon } from "@/components/workday-icon";
 
 type Locale = "ko" | "en";
 type Priority = "low" | "normal" | "high";
@@ -39,7 +40,7 @@ function FloatingSelect({ value, onChange, options, label }: {
     setOpen(current => !current);
   };
   return <div className="quickSelect">
-    <button ref={trigger} type="button" className="quickSelectTrigger" aria-label={label} aria-expanded={open} onClick={toggle}><span>{selected.color && <i className={`colorDot ${selected.color}`}/>} {selected.label}</span><span aria-hidden="true">⌄</span></button>
+    <button ref={trigger} type="button" className="quickSelectTrigger" aria-label={label} aria-expanded={open} onClick={toggle}><span>{selected.color && <i className={`colorDot ${selected.color}`}/>} {selected.label}</span><WorkdayIcon name="chevronDown" size={16}/></button>
     {open && createPortal(<><button className="wd-select-backdrop" type="button" aria-label={label} onClick={() => setOpen(false)}/><div className="quickSelectMenu isFloating wd-edit-select-menu" style={style}>{options.map(option => <button type="button" key={option.value} onClick={() => { onChange(option.value); setOpen(false); }}>{option.color && <i className={`colorDot ${option.color}`}/>} {option.label}</button>)}</div></>, document.body)}
   </div>;
 }
@@ -57,6 +58,7 @@ export function TaskEditDialog({ task, projects, areas, locale }: {
 }) {
   const [open, setOpen] = useState(false);
   const [estimate, setEstimate] = useState(task.estimatedMinutes !== null);
+  const [estimateMinutes, setEstimateMinutes] = useState(task.estimatedMinutes ?? 30);
   const [schedule, setSchedule] = useState<"none" | "date">(task.scheduledItem ? "date" : "none");
   const [priority, setPriority] = useState(task.priority);
   const [location, setLocation] = useState(task.projectId ? `project:${task.projectId}` : task.areaId ? `area:${task.areaId}` : "");
@@ -127,12 +129,12 @@ export function TaskEditDialog({ task, projects, areas, locale }: {
     <button className="wd-edit-menu-item" type="button" onClick={() => setOpen(true)}>{locale === "ko" ? "수정" : "Edit"}</button>
     {open && createPortal(<div className="wd-dialog-layer" onPointerDown={event => event.target === event.currentTarget && setOpen(false)}>
       <section className="wd-dialog wd-task-dialog" ref={panel} role="dialog" aria-modal="true">
-        <header><h2>{locale === "ko" ? "작업 수정" : "Edit task"}</h2><button type="button" onClick={() => setOpen(false)}>×</button></header>
+        <header><div><h2>{locale === "ko" ? "작업 수정" : "Edit task"}</h2><p>{locale === "ko" ? "필요한 항목만 빠르게 설정하세요." : "Set only what you need."}</p></div><button type="button" aria-label={locale === "ko" ? "닫기" : "Close"} onClick={() => setOpen(false)}><WorkdayIcon name="close"/></button></header>
         <form action={save} className="wd-dialog-form">
           <div className="wd-dialog-body">
             <label className="wd-field"><span>{locale === "ko" ? "작업 이름" : "Task name"}</span><input name="title" defaultValue={task.title} required maxLength={120}/></label>
             <div className="wd-field wd-field-spaced"><span>{locale === "ko" ? "위치" : "Location"}</span><input type="hidden" name="location" value={location}/><FloatingSelect value={location} onChange={setLocation} options={locationOptions} label={locale === "ko" ? "위치 선택" : "Choose location"}/></div>
-            <div className="wd-edit-estimate"><label><input type="checkbox" checked={estimate} onChange={event => setEstimate(event.target.checked)}/><span>{locale === "ko" ? "예상 시간" : "Estimate"}</span><b>{estimate ? (locale === "ko" ? "설정" : "Set") : (locale === "ko" ? "설정 안 함" : "Not set")}</b></label>{estimate && <label className="wd-field"><input type="number" name="estimatedMinutes" min="1" max="1440" defaultValue={task.estimatedMinutes ?? 30}/></label>} {!estimate && <input type="hidden" name="estimatedMinutes" value=""/>}</div>
+            <div className="wd-edit-estimate"><label><input type="checkbox" checked={estimate} onChange={event => setEstimate(event.target.checked)}/><span>{locale === "ko" ? "예상 시간" : "Estimate"}</span><b>{estimate ? (locale === "ko" ? "시간 설정" : "Set time") : (locale === "ko" ? "설정 안 함" : "Not set")}</b></label>{estimate && <><div className="quickDuration"><label><input type="number" min="0" max="23" value={Math.floor(estimateMinutes / 60)} onChange={event => setEstimateMinutes(Math.max(0, Number(event.target.value)) * 60 + estimateMinutes % 60)}/><span>{locale === "ko" ? "시간" : "hr"}</span></label><label><input type="number" min="0" max="59" value={estimateMinutes % 60} onChange={event => setEstimateMinutes(Math.floor(estimateMinutes / 60) * 60 + Math.max(0, Math.min(59, Number(event.target.value))))}/><span>{locale === "ko" ? "분" : "min"}</span></label></div><div className="quickPresets">{[15,30,45,60].map(value => <button type="button" className={estimateMinutes === value ? "active" : ""} onClick={() => setEstimateMinutes(value)} key={value}>{value === 60 ? (locale === "ko" ? "1시간" : "1 hr") : `${value}${locale === "ko" ? "분" : " min"}`}</button>)}</div><input type="hidden" name="estimatedMinutes" value={Math.max(1,estimateMinutes)}/></>} {!estimate && <input type="hidden" name="estimatedMinutes" value=""/>}</div>
             <div className="wd-edit-block"><span className="wd-edit-label">{locale === "ko" ? "우선순위" : "Priority"}</span><div className="quickPriority">{(["low","normal","high"] as Priority[]).map(level => <label className={`${level} ${priority === level ? "active" : ""}`} key={level}><input type="radio" name="priority" value={level} checked={priority === level} onChange={() => setPriority(level)}/><span>{level === "low" ? (locale === "ko" ? "낮음" : "Low") : level === "normal" ? (locale === "ko" ? "보통" : "Normal") : (locale === "ko" ? "높음" : "High")}</span></label>)}</div></div>
             <div className="wd-edit-block"><span className="wd-edit-label">{locale === "ko" ? "일정" : "Schedule"}</span><div className="quickScheduleChoice"><button type="button" className={schedule === "none" ? "active" : ""} onClick={() => setSchedule("none")}>{locale === "ko" ? "일정 없음" : "No date"}</button><button type="button" className={schedule === "date" ? "active" : ""} onClick={() => setSchedule("date")}>{locale === "ko" ? "날짜 선택" : "Choose date"}</button></div>{schedule === "date" && <div className="quickCalendar"><DateCalendarPicker initial={task.scheduledItem?.date ?? today} min={today} locale={locale}/></div>}</div>
             <div className="wd-field wd-field-spaced"><span>{locale === "ko" ? "반복" : "Repeat"}</span><input type="hidden" name="repeat" value={repeat}/><FloatingSelect value={repeat} onChange={value => setRepeat(value as typeof repeat)} options={repeatOptions} label={locale === "ko" ? "반복 선택" : "Choose repeat"}/></div>

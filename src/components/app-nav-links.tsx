@@ -9,7 +9,7 @@ export function AppNavLinks({ labels }: { labels: readonly string[] }) {
   const links = [
     { href: "/", label: labels[1], icon: "calendar" as WorkdayIconName },
     { href: "/tasks", label: labels[0], icon: "tasks" as WorkdayIconName },
-    { href: "/areas", label: labels[2] === "Areas" ? "영역" : labels[2], icon: "areas" as WorkdayIconName },
+    { href: "/areas", label: labels[2], icon: "areas" as WorkdayIconName },
     { href: "/projects", label: labels[3], icon: "projects" as WorkdayIconName },
     { href: "/growth", label: labels[4], icon: "reports" as WorkdayIconName },
     { href: "/archive", label: labels[5], icon: "archive" as WorkdayIconName },

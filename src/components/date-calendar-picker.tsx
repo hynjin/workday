@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { WorkdayIcon } from "@/components/workday-icon";
 
 function key(date: Date) {
   return date.toISOString().slice(0, 10);
@@ -17,7 +18,7 @@ export function DateCalendarPicker({ name = "date", initial, min, locale }: { na
   const move = (amount: number) => setCursor(new Date(Date.UTC(year, month + amount, 1)));
   return <div className="wd-inline-calendar">
     <input type="hidden" name={name} value={selected}/>
-    <header><button type="button" onClick={() => move(-1)} aria-label={locale === "ko" ? "이전 달" : "Previous month"}>‹</button><strong>{label}</strong><button type="button" onClick={() => move(1)} aria-label={locale === "ko" ? "다음 달" : "Next month"}>›</button></header>
+    <header><button type="button" onClick={() => move(-1)} aria-label={locale === "ko" ? "이전 달" : "Previous month"}><WorkdayIcon name="chevronLeft" size={16}/></button><strong>{label}</strong><button type="button" onClick={() => move(1)} aria-label={locale === "ko" ? "다음 달" : "Next month"}><WorkdayIcon name="chevronRight" size={16}/></button></header>
     <div>{weekdays.map((day,index) => <span key={`${day}-${index}`}>{day}</span>)}{Array.from({length:firstOffset},(_,index) => <i key={`blank-${index}`}/>)}
       {Array.from({length:count},(_,index) => {
         const date = key(new Date(Date.UTC(year,month,index+1)));

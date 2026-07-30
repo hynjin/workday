@@ -6,6 +6,7 @@ import { quickAddTaskState } from "@/lib/actions";
 import type { Locale } from "@/lib/i18n";
 import { getWorkdayDate } from "@/lib/workday-date";
 import { DateCalendarPicker } from "@/components/date-calendar-picker";
+import { WorkdayIcon } from "@/components/workday-icon";
 
 type Destination = "inbox" | "date";
 type Priority = "low" | "normal" | "high";
@@ -105,15 +106,15 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
   };
 
   return <details className="quickAdd" ref={detailsRef}>
-    <summary aria-label={locale === "ko" ? "새 작업" : "New task"}>+</summary>
+    <summary aria-label={locale === "ko" ? "새 작업" : "New task"}><WorkdayIcon name="plus" size={17}/></summary>
     <button className="quickAddBackdrop" type="button" aria-label={locale === "ko" ? "새 작업 닫기" : "Close new task"} onClick={closeAndReset}/>
     <form ref={formRef} action={submit} className="quickAddForm">
-      <header className="quickAddHeader"><div><strong>{locale === "ko" ? "새 작업" : "New task"}</strong><small>{locale === "ko" ? "필요한 항목만 빠르게 설정하세요." : "Set only what you need."}</small></div><button type="button" className="quickClose" onClick={closeAndReset} aria-label={locale === "ko" ? "닫기" : "Close"}>×</button></header>
+      <header className="quickAddHeader"><div><strong>{locale === "ko" ? "새 작업" : "New task"}</strong><small>{locale === "ko" ? "필요한 항목만 빠르게 설정하세요." : "Set only what you need."}</small></div><button type="button" className="quickClose" onClick={closeAndReset} aria-label={locale === "ko" ? "닫기" : "Close"}><WorkdayIcon name="close"/></button></header>
       <div className="quickAddBody">
         <input ref={titleRef} className="quickTaskName" name="title" placeholder={locale === "ko" ? "무엇을 해야 하나요?" : "What needs to be done?"} maxLength={120} required autoComplete="off"/>
 
         <div className="quickField"><span className="quickLabel">{locale === "ko" ? "위치" : "Location"}</span><div className="quickSelect" ref={locationRef}>
-          <button type="button" className="quickSelectTrigger" onClick={() => { setRepeatOpen(false); setLocationMenuStyle(floatingMenuStyle(locationRef.current, 205)); setLocationOpen(value => !value); }}><span><i className={`colorDot ${selectedLocation.color}`}/>{selectedLocation.title}</span><span aria-hidden="true">⌄</span></button>
+          <button type="button" className="quickSelectTrigger" onClick={() => { setRepeatOpen(false); setLocationMenuStyle(floatingMenuStyle(locationRef.current, 205)); setLocationOpen(value => !value); }}><span><i className={`colorDot ${selectedLocation.color}`}/>{selectedLocation.title}</span><WorkdayIcon name="chevronDown" size={16}/></button>
           {locationOpen && <div className="quickSelectMenu isFloating" style={locationMenuStyle}><input value={locationQuery} onChange={event => setLocationQuery(event.target.value)} placeholder={locale === "ko" ? "영역 또는 프로젝트 검색" : "Search areas or projects"}/><div>{filteredLocations.map(item => <button type="button" key={item.value || "inbox"} onClick={() => { setLocation(item.value); setLocationOpen(false); setLocationQuery(""); }}><i className={`colorDot ${item.color}`}/>{item.title}</button>)}</div></div>}
         </div></div>
         <input type="hidden" name="areaId" value={location.startsWith("area:") ? location.slice(5) : ""}/>
@@ -131,7 +132,7 @@ export function QuickAdd({ projects, areas, locale }: { projects: { id: string; 
         </div>
 
         <div className="quickField"><span className="quickLabel">{locale === "ko" ? "반복" : "Repeat"}</span><input type="hidden" name="repeat" value={repeat}/><div className="quickSelect quickRepeat" ref={repeatRef}>
-          <button type="button" className="quickSelectTrigger" aria-expanded={repeatOpen} onClick={() => { setLocationOpen(false); setRepeatMenuStyle(floatingMenuStyle(repeatRef.current, 150)); setRepeatOpen(value => !value); }}><span>{repeat === "daily" ? (locale === "ko" ? "매일" : "Daily") : repeat === "weekly" ? (locale === "ko" ? "매주" : "Weekly") : repeat === "monthly" ? (locale === "ko" ? "매월" : "Monthly") : (locale === "ko" ? "반복 없음" : "No repeat")}</span><span aria-hidden="true">⌄</span></button>
+          <button type="button" className="quickSelectTrigger" aria-expanded={repeatOpen} onClick={() => { setLocationOpen(false); setRepeatMenuStyle(floatingMenuStyle(repeatRef.current, 150)); setRepeatOpen(value => !value); }}><span>{repeat === "daily" ? (locale === "ko" ? "매일" : "Daily") : repeat === "weekly" ? (locale === "ko" ? "매주" : "Weekly") : repeat === "monthly" ? (locale === "ko" ? "매월" : "Monthly") : (locale === "ko" ? "반복 없음" : "No repeat")}</span><WorkdayIcon name="chevronDown" size={16}/></button>
           {repeatOpen && <div className="quickSelectMenu quickRepeatMenu isFloating" style={repeatMenuStyle}>{[
             ["none", locale === "ko" ? "반복 없음" : "No repeat"],
             ["daily", locale === "ko" ? "매일" : "Daily"],

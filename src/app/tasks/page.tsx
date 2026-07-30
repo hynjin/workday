@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { dateKeyToDate, getWorkdayDate } from "@/lib/workday-date";
 import { OpenQuickAddButton } from "@/components/open-quick-add-button";
 import { TaskEditDialog } from "@/components/task-edit-dialog";
+import { WorkdayIcon } from "@/components/workday-icon";
 
 export const dynamic = "force-dynamic";
 
@@ -52,14 +53,14 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
   ]);
 
   const label = {
-    inbox: locale === "ko" ? "Inbox" : "Inbox",
+    inbox: locale === "ko" ? "수집함" : "Inbox",
     today: locale === "ko" ? "오늘" : "Today",
     upcoming: locale === "ko" ? "예정" : "Upcoming",
     unscheduled: locale === "ko" ? "미정" : "Unscheduled",
     completed: locale === "ko" ? "완료 기록" : "Completed",
   };
   return <main className="wd-app"><AppNav/><section className="wd-main">
-    <header className="wd-page-head"><div><span className="wd-eyebrow">{locale === "ko" ? "모든 작업" : "ALL TASKS"}</span><h1>{locale === "ko" ? "작업" : "Tasks"}</h1><span className="wd-muted">{locale === "ko" ? "소속과 일정 상태에 따라 필요한 작업을 찾아보세요." : "Find tasks by location and schedule."}</span></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
+    <header className="wd-page-head"><div><span className="wd-eyebrow">{locale === "ko" ? "작업 모음" : "TASKS"}</span><h1>{locale === "ko" ? "작업" : "Tasks"}</h1><span className="wd-muted">{locale === "ko" ? "해야 할 일을 한곳에서 정리해요." : "Organize everything in one place."}</span></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
     <nav className="wd-tabs" aria-label={locale === "ko" ? "작업 필터" : "Task filters"}>{filters.map(item => <Link className={item === filter ? "is-active" : ""} href={`/tasks?filter=${item}`} key={item}>{label[item]}</Link>)}</nav>
     <section className="wd-directory">
       {tasks.map(task => {
@@ -71,7 +72,7 @@ export default async function TasksPage({ searchParams }: { searchParams: Promis
           <div className="wd-directory-copy"><strong>{task.title}</strong><div><span><i className={`wd-dot ${locationColor}`}/>{location}</span>{task.parentTask && <span>{locale === "ko" ? "하위 작업 · " : "Subtask · "}{task.parentTask.title}</span>}{filter === "completed" && item && <time>{item.workday.workdayDate.toISOString().slice(0, 10)}</time>}</div></div>
           <div className="wd-directory-actions">
             {filter !== "completed" && <TaskSchedulePicker taskId={task.id} locale={locale} compact scheduledItem={scheduledItem}/>}
-            <details className="wd-more-menu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}>•••</summary><div>
+            <details className="wd-more-menu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}><WorkdayIcon name="more"/></summary><div>
               <TaskEditDialog task={{ id: task.id, title: task.title, priority: task.priority, estimatedMinutes: task.estimatedMinutes, projectId: task.projectId, areaId: task.areaId, scheduledItem, repeat: task.recurrenceRule?.frequency ?? "none" }} projects={projects} areas={areas} locale={locale}/>
               <form action={archiveTask}><input type="hidden" name="taskId" value={task.id}/><button className="textButton muted">{locale === "ko" ? "보관" : "Archive"}</button></form>
               <ConfirmSubmit action={deleteTask} fields={{ taskId: task.id }} message={locale === "ko" ? `‘${task.title}’ 작업을 삭제할까요?` : `Delete “${task.title}”?`}><button className="textButton dangerText">{locale === "ko" ? "삭제" : "Delete"}</button></ConfirmSubmit>

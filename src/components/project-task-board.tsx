@@ -8,6 +8,7 @@ import { ConfirmSubmit } from "./editable-text";
 import { TaskSchedulePicker } from "./task-schedule-picker";
 import { TaskEditDialog } from "./task-edit-dialog";
 import { EditSectionDialog } from "./project-dialogs";
+import { WorkdayIcon } from "./workday-icon";
 
 type Rule = {
   frequency: "daily" | "weekly" | "monthly";
@@ -116,10 +117,10 @@ export function ProjectTaskBoard({ projectId, viewMode, sections, tasks, locale,
           onDrop={event => dropOnColumn(event, column.id, columnIndex, columnTasks.length)}
         >
           <header className="wd-board-column-head">
-            {column.id && <span className="wd-board-drag" draggable={reorderEnabled} onDragStart={event => beginDrag(event, { kind: "section", id: column.id! })} aria-label={locale === "ko" ? "섹션 끌어서 이동" : "Drag to move section"} role="button" tabIndex={0}>⠿</span>}
+            {column.id && <span className="wd-board-drag" draggable={reorderEnabled} onDragStart={event => beginDrag(event, { kind: "section", id: column.id! })} aria-label={locale === "ko" ? "섹션 끌어서 이동" : "Drag to move section"} role="button" tabIndex={0}><WorkdayIcon name="grip" size={15}/></span>}
             <strong>{column.title}</strong>
             <span>{columnTasks.length}</span>
-            {column.id && <details className="wd-more-menu"><summary aria-label={locale === "ko" ? "섹션 메뉴" : "Section menu"}>•••</summary><div>
+            {column.id && <details className="wd-more-menu"><summary aria-label={locale === "ko" ? "섹션 메뉴" : "Section menu"}><WorkdayIcon name="more"/></summary><div>
               <EditSectionDialog section={{id:column.id,title:column.title}} locale={locale}/>
               <button type="button" className="textButton" disabled={!reorderEnabled || columnIndex === 1 || pending} onClick={() => runSectionMove(column.id!, columnIndex - 2)}>{locale === "ko" ? "왼쪽으로 이동" : "Move left"}</button>
               <button type="button" className="textButton" disabled={!reorderEnabled || columnIndex === columns.length - 1 || pending} onClick={() => runSectionMove(column.id!, columnIndex)}>{locale === "ko" ? "오른쪽으로 이동" : "Move right"}</button>
@@ -133,7 +134,7 @@ export function ProjectTaskBoard({ projectId, viewMode, sections, tasks, locale,
               onDragOver={allowDrop}
               onDrop={event => dropOnTask(event, column.id, taskIndex)}
             >
-              <div className="wd-board-card-head"><span className="wd-board-drag" draggable={reorderEnabled} onDragStart={event => beginDrag(event, { kind: "task", id: task.id })} aria-label={locale === "ko" ? "작업 끌어서 이동" : "Drag to move task"} role="button" tabIndex={0}>⠿</span><strong>{task.title}</strong><details className="wd-more-menu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}>•••</summary><div>
+              <div className="wd-board-card-head"><span className="wd-board-drag" draggable={reorderEnabled} onDragStart={event => beginDrag(event, { kind: "task", id: task.id })} aria-label={locale === "ko" ? "작업 끌어서 이동" : "Drag to move task"} role="button" tabIndex={0}><WorkdayIcon name="grip" size={15}/></span><strong>{task.title}</strong><details className="wd-more-menu"><summary aria-label={locale === "ko" ? "작업 메뉴" : "Task menu"}><WorkdayIcon name="more"/></summary><div>
                   <TaskEditDialog task={{ id:task.id,title:task.title,priority:task.priority,estimatedMinutes:task.estimatedMinutes,projectId,areaId:null,scheduledItem:task.scheduledItem,repeat:task.recurrenceRule?.frequency ?? "none" }} projects={projects} areas={areas} locale={locale}/>
                   <button type="button" className="textButton" disabled={!reorderEnabled || taskIndex === 0 || pending} onClick={() => runTaskMove(task.id, column.id, taskIndex - 1)}>{locale === "ko" ? "위로 이동" : "Move up"}</button>
                   <button type="button" className="textButton" disabled={!reorderEnabled || taskIndex === columnTasks.length - 1 || pending} onClick={() => runTaskMove(task.id, column.id, taskIndex + 1)}>{locale === "ko" ? "아래로 이동" : "Move down"}</button>

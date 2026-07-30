@@ -67,14 +67,14 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   return <main className="wd-app">
     <AppNav />
     <section className="wd-main">
-      <header className="wd-page-head"><div><span className="wd-eyebrow">{formatWorkdayDate(view.workdayDate, locale)}</span><h1>{isToday ? (locale === "ko" ? "오늘의 일정" : "Today’s schedule") : isPast ? (locale === "ko" ? "일정 기록" : "Schedule record") : (locale === "ko" ? "일정 계획" : "Schedule plan")}</h1><span className="wd-muted">{locale === "ko" ? "작업을 누르면 바로 집중을 시작해요." : "Select a task to start focusing."}</span></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
+      <header className="wd-page-head"><div><span className="wd-eyebrow">{formatWorkdayDate(view.workdayDate, locale)}</span><h1>{isToday ? (locale === "ko" ? "오늘의 일정" : "Today’s schedule") : isPast ? (locale === "ko" ? "일정 기록" : "Schedule record") : (locale === "ko" ? "일정 계획" : "Schedule plan")}</h1><span className="wd-muted">{locale === "ko" ? "작업을 누르면 집중을 시작해요." : "Select a task to start focusing."}</span></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
 
       <div className="wd-schedule-layout">
         <div className="wd-schedule-main">
         {params.removed && <aside className="wd-notice" role="status"><span>{locale === "ko" ? "이 날짜의 작업에서 제거했습니다. 작업 자체와 기록은 유지됩니다." : "Removed from this date. The task and its history are preserved."}</span><form action={undoRemoveWorkdayItem}><input type="hidden" name="itemId" value={params.removed}/><button className="wd-text-button">{locale === "ko" ? "실행 취소" : "Undo"}</button></form></aside>}
         <section className="wd-day-summary"><div><strong>{locale === "ko" ? "오늘의 흐름" : "Today’s flow"}</strong><span>{locale === "ko" ? `${view.items.length}개 중 ${done.length}개 완료 · 총 집중 ${formatDuration(view.totalSeconds, false, locale)}` : `${done.length} of ${view.items.length} complete · ${formatDuration(view.totalSeconds, false, locale)} focused`}</span></div><div className="wd-day-progress"><i style={{ width: `${view.items.length ? Math.round(done.length / view.items.length * 100) : 0}%` }}/></div></section>
         <section className="wd-task-section">
-          <div className="wd-section-head"><h2>{locale === "ko" ? "이 날짜의 작업" : "Scheduled tasks"}</h2></div>
+          <div className="wd-section-head"><h2>{locale === "ko" ? "이 날짜의 작업" : "Tasks for this date"}</h2><span>{view.items.length}</span></div>
           <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} selectedDate={selectedKey} projects={taskProjects} areas={taskAreas}/>
           {!view.items.length && <div className="wd-empty"><p>{isPast ? (locale === "ko" ? "이 날짜에는 기록된 작업이 없습니다." : "No work was recorded on this date.") : isFuture ? (locale === "ko" ? "이 날짜에는 아직 계획된 작업이 없습니다." : "Nothing is planned for this date yet.") : (locale === "ko" ? "오늘 작업이 아직 없습니다." : "There are no tasks for today yet.")}</p><Link className="wd-button" href="/tasks">{locale === "ko" ? "작업 계획하기" : "Plan tasks"}</Link></div>}
         </section>
