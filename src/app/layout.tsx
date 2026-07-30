@@ -1,17 +1,13 @@
 import type { Metadata } from "next";
 import { getLocale } from "@/lib/i18n";
-import { QuickAdd } from "@/components/quick-add";
-import { KeyboardShortcuts } from "@/components/keyboard-shortcuts";
 import { prisma } from "@/lib/prisma";
 import { generateOccurrences } from "@/lib/recurrence";
 import { getWorkdayDate } from "@/lib/workday-date";
 import { getOptionalUser } from "@/lib/auth";
-import { SessionKeeper } from "@/components/session-keeper";
-import { PopoverCloser } from "@/components/popover-closer";
-import { LocalBackupPrompt } from "@/components/local-backup-prompt";
-import { RailCollapseController } from "@/components/rail-collapse-controller";
+import { LegacyProductTools } from "@/components/legacy-product-tools";
 import "./globals.css";
 import "./workday.css";
+import "../../ui/styles.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const locale = await getLocale();
@@ -26,12 +22,16 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   let projects: { id: string; title: string; color: string }[] = [];
   let areas: { id: string; title: string; color: string }[] = [];
   if (user) {
-    const today = getWorkdayDate();
-    await generateOccurrences({ from: today, to: today });
-    [projects, areas] = await Promise.all([
-      prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true, color: true } }),
-      prisma.area.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true, color: true } }),
-    ]);
+    try {
+      const today = getWorkdayDate();
+      await generateOccurrences({ from: today, to: today });
+      [projects, areas] = await Promise.all([
+        prisma.project.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true, color: true } }),
+        prisma.area.findMany({ where: { status: "active" }, orderBy: [{ sortOrder: "asc" }, { createdAt: "asc" }], select: { id: true, title: true, color: true } }),
+      ]);
+    } catch {
+      // UI previews and auth-only routes must remain available when the local DB is offline.
+    }
   }
-  return <html lang={locale}><body>{children}{user && <><LocalBackupPrompt locale={locale}/><SessionKeeper/><PopoverCloser/><RailCollapseController/><KeyboardShortcuts locale={locale}/><QuickAdd projects={projects} areas={areas} locale={locale}/></>}</body></html>;
+  return <html lang={locale}><body>{children}{user&&<LegacyProductTools locale={locale} projects={projects} areas={areas}/>}</body></html>;
 }

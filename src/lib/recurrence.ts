@@ -64,11 +64,11 @@ async function generateRuleOccurrences(client: RecurrenceClient, rule: RuleWithT
     await client.$executeRaw(Prisma.sql`
       INSERT INTO "WorkdayItem" (
         "id", "workdayId", "taskId", "titleSnapshot", "title",
-        "recurrenceRuleId", "status", "isKeyTask", "sortOrder", "createdAt"
+        "recurrenceRuleId", "dailyGoalMinutes", "status", "isKeyTask", "sortOrder", "createdAt"
       )
       VALUES (
         ${randomUUID()}, ${workday.id}, ${rule.taskId}, ${rule.task.title}, ${rule.task.title},
-        ${rule.id}, 'planned'::"WorkdayItemStatus", false, 0, CURRENT_TIMESTAMP
+        ${rule.id}, ${rule.task.estimatedMinutes}, 'planned'::"WorkdayItemStatus", false, 0, CURRENT_TIMESTAMP
       )
       ON CONFLICT ("workdayId", "taskId") DO NOTHING
     `);

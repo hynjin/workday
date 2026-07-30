@@ -28,6 +28,13 @@ function estimatedMinutesFrom(form: FormData) {
   return z.coerce.number().int().min(1).max(1440).parse(value);
 }
 
+function scheduleDatesFrom(form: FormData, fallback: string[] = []) {
+  const raw = form.get("dates");
+  if (!raw) return fallback;
+  const parsed = z.array(dateSchema).max(62).parse(JSON.parse(String(raw)));
+  return [...new Set(parsed)].sort();
+}
+
 function futureDateKey(days: number) {
   const date = dateKeyToDate(getWorkdayDate());
   date.setUTCDate(date.getUTCDate() + days);
@@ -426,26 +433,28 @@ export async function quickAddTask(form: FormData) {
   if (projectId && areaId) throw new Error("작업 위치는 한 곳만 선택할 수 있습니다.");
   const destination = z.enum(["inbox", "today", "tomorrow", "date"]).parse(form.get("destination") || "inbox");
   const customDate = destination === "date" ? dateSchema.parse(form.get("date")) : null;
+  const today = getWorkdayDate();
+  const fallbackDates = destination === "inbox"
+    ? []
+    : [destination === "today" ? today : destination === "tomorrow" ? futureDateKey(1) : customDate!];
+  const scheduleDates = scheduleDatesFrom(form, fallbackDates);
+  if (repeat !== "none" && scheduleDates.length !== 1) throw new Error("반복 작업은 시작일 한 개가 필요합니다.");
   if (projectId) await prisma.project.findFirstOrThrow({ where: { id: projectId, status: "active" } });
   if (areaId) await prisma.area.findFirstOrThrow({ where: { id: areaId, status: "active" } });
   await prisma.$transaction(async (tx) => {
     let task = await tx.task.findFirst({ where: { projectId: projectId ?? null, areaId: areaId ?? null, parentTaskId: null, title: { equals: title, mode: "insensitive" } } });
     if (task) task = await tx.task.update({ where: { id: task.id }, data: { status: "active", priority, estimatedMinutes, archivedAt: null } });
     else task = await tx.task.create({ data: { title, projectId, areaId, estimatedMinutes, priority } });
-    const today = getWorkdayDate();
-    if (destination !== "inbox") {
-      const dateKey = destination === "today" ? today : destination === "tomorrow" ? nextDate(dateKeyToDate(today)).toISOString().slice(0, 10) : customDate!;
-      if (dateKey < today) throw new Error("지난 날짜에는 새 작업을 추가할 수 없습니다.");
+    for (const dateKey of scheduleDates) {
       const workdayDate = dateKeyToDate(dateKey);
       const workday = await tx.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
-      if (workday.status === "completed") throw new Error("종료된 작업일에는 추가할 수 없습니다.");
       await tx.workdayItem.createMany({
-        data: [{ workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title }],
+        data: [{ workdayId: workday.id, taskId: task.id, titleSnapshot: task.title, legacyTitle: task.title, dailyGoalMinutes: estimatedMinutes }],
         skipDuplicates: true,
       });
     }
     if (repeat !== "none") {
-      const start = destination === "date" ? customDate! : destination === "tomorrow" ? futureDateKey(1) : today;
+      const start = scheduleDates[0];
       const startDate = dateKeyToDate(start);
       await tx.recurrenceRule.upsert({
         where: { taskId: task.id },
@@ -469,8 +478,55 @@ export async function quickAddTask(form: FormData) {
       });
     }
   });
+  if (repeat !== "none") await generateOccurrences({ from: scheduleDates[0], to: futureDateKey(60) });
   refreshWorkspace();
   return { success: true };
+}
+
+export async function syncTaskSchedule(form: FormData) {
+  const taskId = idFrom(form, "taskId");
+  const dates = scheduleDatesFrom(form);
+  const task = await prisma.task.findFirstOrThrow({
+    where: { id: taskId, status: "active" },
+    select: { id: true, title: true, estimatedMinutes: true },
+  });
+  const desired = new Set(dates);
+  await prisma.$transaction(async (tx) => {
+    const existing = await tx.workdayItem.findMany({
+      where: { taskId },
+      select: {
+        id: true,
+        status: true,
+        dismissedAt: true,
+        workday: { select: { workdayDate: true } },
+        focusSessions: { select: { id: true }, take: 1 },
+      },
+    });
+    const removable = existing
+      .filter(item => item.status === "planned" && !item.focusSessions.length && !desired.has(item.workday.workdayDate.toISOString().slice(0, 10)))
+      .map(item => item.id);
+    if (removable.length) await tx.workdayItem.deleteMany({ where: { id: { in: removable } } });
+    const existingByDate = new Map(existing.map(item => [item.workday.workdayDate.toISOString().slice(0, 10),item]));
+    for (const key of dates) {
+      const scheduled = existingByDate.get(key);
+      if (scheduled) {
+        if (scheduled.dismissedAt) await tx.workdayItem.update({ where:{ id:scheduled.id }, data:{ dismissedAt:null } });
+        continue;
+      }
+      const workdayDate = dateKeyToDate(key);
+      const workday = await tx.workday.upsert({ where: await ownedWorkdayWhere(workdayDate), create: { workdayDate }, update: {} });
+      await tx.workdayItem.create({
+        data: {
+          workdayId: workday.id,
+          taskId: task.id,
+          titleSnapshot: task.title,
+          legacyTitle: task.title,
+          dailyGoalMinutes: task.estimatedMinutes,
+        },
+      });
+    }
+  });
+  refreshWorkspace();
 }
 
 export async function quickAddTaskState(_state: { success: boolean; nonce: number }, form: FormData) {

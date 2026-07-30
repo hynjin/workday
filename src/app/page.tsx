@@ -1,14 +1,23 @@
-import Link from "next/link";
-import { AppNav } from "@/components/app-nav";
-import { WorkdayCalendar } from "@/components/workday-calendar";
-import { WorkdayTaskList } from "@/components/workday-task-list";
+import { redirect } from "next/navigation";
 import { getOrCreateCurrentWorkday, getWorkdayView } from "@/lib/data";
 import { prisma } from "@/lib/prisma";
 import { getLocale } from "@/lib/i18n";
-import { dateKeyToDate, formatDuration, formatWorkdayDate, getWorkdayDate } from "@/lib/workday-date";
+import { dateKeyToDate, formatWorkdayDate, getWorkdayDate } from "@/lib/workday-date";
 import { ownedWorkdayWhere } from "@/lib/auth";
-import { undoRemoveWorkdayItem } from "@/lib/actions";
-import { OpenQuickAddButton } from "@/components/open-quick-add-button";
+import { ApprovedSchedulePresentation, type ScheduleItem, type ScheduleSearchItem } from "@/presentation/schedule/schedule-view";
+import {
+  changeScheduleLocale,
+  archiveScheduleTask,
+  completeScheduleItem,
+  createScheduleTask,
+  deleteScheduleTask,
+  removeScheduleItem,
+  reorderScheduleItem,
+  signOutFromSchedule,
+  startScheduleFocus,
+  undoScheduleRemoval,
+  updateScheduleTask,
+} from "@/adapters/schedule-actions";
 
 export const dynamic = "force-dynamic";
 
@@ -16,7 +25,7 @@ function validDate(value?: string) {
   return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : undefined;
 }
 
-export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string; month?: string; removed?: string }> }) {
+export default async function Home({ searchParams }: { searchParams: Promise<{ date?: string; month?: string; removed?: string; focused?:string }> }) {
   const [params, locale] = await Promise.all([searchParams, getLocale()]);
   const todayKey = getWorkdayDate();
   const current = await getOrCreateCurrentWorkday();
@@ -33,7 +42,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
     totalSessions: 0,
   };
   const activeSession = await prisma.focusSession.findFirst({ where: { endedAt: null }, select: { id: true } });
-  if (activeSession && selectedKey === todayKey) return <main className="wd-app"><AppNav/><section className="wd-main wd-centered"><span className="wd-eyebrow">{locale === "ko" ? "진행 중인 세션" : "ACTIVE SESSION"}</span><h1>{locale === "ko" ? "집중을 이어가세요" : "Keep your focus going"}</h1><Link className="wd-button is-primary" href={`/focus/${activeSession.id}`}>{locale === "ko" ? "타이머로 돌아가기" : "Return to timer"}</Link></section></main>;
+  if (activeSession && selectedKey === todayKey) redirect(`/focus/${activeSession.id}`);
 
   const monthKey = /^\d{4}-\d{2}$/.test(params.month ?? "") ? params.month! : selectedKey.slice(0, 7);
   const monthStart = dateKeyToDate(`${monthKey}-01`);
@@ -41,10 +50,7 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
   const records = await prisma.workday.findMany({
     where: {
       workdayDate: { gte: monthStart, lt: monthEnd },
-      OR: [
-        { items: { some: { status: "completed" } } },
-        { items: { some: { focusSessions: { some: { durationSeconds: { gt: 0 } } } } } },
-      ],
+      items: { some: { dismissedAt: null } },
     },
     select: { workdayDate: true },
   });
@@ -54,33 +60,104 @@ export default async function Home({ searchParams }: { searchParams: Promise<{ d
     const key = `${monthKey}-${String(index + 1).padStart(2, "0")}`;
     return { key, hasWorkday: recordedDates.has(key), selected: key === selectedKey, today: key === todayKey };
   });
-  const done = view.items.filter(item => item.status === "completed");
   const isToday = selectedKey === todayKey;
   const isPast = selectedKey < todayKey;
-  const isFuture = selectedKey > todayKey;
   const actionable = isToday && view.status !== "completed";
-  const planning = isFuture && view.status !== "completed";
-  const [taskProjects, taskAreas] = await Promise.all([
+  const taskIds = [...new Set(view.items.map(item => item.taskId).filter((id): id is string => Boolean(id)))];
+  const [taskProjects, taskAreas, scheduledItems, recurrenceRules] = await Promise.all([
     prisma.project.findMany({ where:{ status:"active" }, orderBy:{ title:"asc" }, select:{ id:true,title:true,color:true } }),
     prisma.area.findMany({ where:{ status:"active" }, orderBy:{ title:"asc" }, select:{ id:true,title:true,color:true } }),
+    taskIds.length ? prisma.workdayItem.findMany({
+      where: {
+        taskId: { in: taskIds },
+        dismissedAt: null,
+        workday: { workdayDate: { gte: dateKeyToDate(isPast ? selectedKey : todayKey) } },
+      },
+      select: { taskId:true, workday:{ select:{ workdayDate:true } } },
+    }) : Promise.resolve([]),
+    taskIds.length ? prisma.recurrenceRule.findMany({
+      where: { taskId:{ in:taskIds } },
+      select: { taskId:true, startsOn:true },
+    }) : Promise.resolve([]),
   ]);
-  return <main className="wd-app">
-    <AppNav />
-    <section className="wd-main">
-      <header className="wd-page-head"><div><span className="wd-eyebrow">{formatWorkdayDate(view.workdayDate, locale)}</span><h1>{isToday ? (locale === "ko" ? "오늘의 일정" : "Today’s schedule") : isPast ? (locale === "ko" ? "일정 기록" : "Schedule record") : (locale === "ko" ? "일정 계획" : "Schedule plan")}</h1><span className="wd-muted">{locale === "ko" ? "작업을 누르면 집중을 시작해요." : "Select a task to start focusing."}</span></div><OpenQuickAddButton label={locale === "ko" ? "새 작업" : "New task"}/></header>
-
-      <div className="wd-schedule-layout">
-        <div className="wd-schedule-main">
-        {params.removed && <aside className="wd-notice" role="status"><span>{locale === "ko" ? "이 날짜의 작업에서 제거했습니다. 작업 자체와 기록은 유지됩니다." : "Removed from this date. The task and its history are preserved."}</span><form action={undoRemoveWorkdayItem}><input type="hidden" name="itemId" value={params.removed}/><button className="wd-text-button">{locale === "ko" ? "실행 취소" : "Undo"}</button></form></aside>}
-        <section className="wd-day-summary"><div><strong>{locale === "ko" ? "오늘의 흐름" : "Today’s flow"}</strong><span>{locale === "ko" ? `${view.items.length}개 중 ${done.length}개 완료 · 총 집중 ${formatDuration(view.totalSeconds, false, locale)}` : `${done.length} of ${view.items.length} complete · ${formatDuration(view.totalSeconds, false, locale)} focused`}</span></div><div className="wd-day-progress"><i style={{ width: `${view.items.length ? Math.round(done.length / view.items.length * 100) : 0}%` }}/></div></section>
-        <section className="wd-task-section">
-          <div className="wd-section-head"><h2>{locale === "ko" ? "이 날짜의 작업" : "Tasks for this date"}</h2><span>{view.items.length}</span></div>
-          <WorkdayTaskList items={view.items} locale={locale} actionable={actionable} planning={planning} selectedDate={selectedKey} projects={taskProjects} areas={taskAreas}/>
-          {!view.items.length && <div className="wd-empty"><p>{isPast ? (locale === "ko" ? "이 날짜에는 기록된 작업이 없습니다." : "No work was recorded on this date.") : isFuture ? (locale === "ko" ? "이 날짜에는 아직 계획된 작업이 없습니다." : "Nothing is planned for this date yet.") : (locale === "ko" ? "오늘 작업이 아직 없습니다." : "There are no tasks for today yet.")}</p><Link className="wd-button" href="/tasks">{locale === "ko" ? "작업 계획하기" : "Plan tasks"}</Link></div>}
-        </section>
-      </div>
-      <aside className="wd-calendar-side"><WorkdayCalendar monthKey={monthKey} days={days} locale={locale}/>{!isToday && <Link className="wd-button" href="/">{locale === "ko" ? "오늘로 돌아가기" : "Back to today"}</Link>}<div className="wd-calendar-legend"><span><i className="is-today"/> {locale === "ko" ? "오늘" : "Today"}</span><span><i className="is-recorded"/> {locale === "ko" ? "기록 있음" : "Recorded"}</span></div></aside>
-    </div>
-    </section>
-  </main>;
+  const previousMonth = new Date(monthStart);
+  previousMonth.setUTCMonth(previousMonth.getUTCMonth() - 1);
+  const nextMonth = new Date(monthStart);
+  nextMonth.setUTCMonth(nextMonth.getUTCMonth() + 1);
+  const options = [
+    ...taskProjects.map(project => ({ ...project, kind: "project" as const })),
+    ...taskAreas.map(area => ({ ...area, kind: "area" as const })),
+  ];
+  const scheduledByTask = new Map<string,string[]>();
+  for (const scheduled of scheduledItems) {
+    if (!scheduled.taskId) continue;
+    const dates = scheduledByTask.get(scheduled.taskId) ?? [];
+    dates.push(scheduled.workday.workdayDate.toISOString().slice(0,10));
+    scheduledByTask.set(scheduled.taskId,dates);
+  }
+  const repeatStartByTask = new Map(recurrenceRules.map(rule=>[rule.taskId,rule.startsOn.toISOString().slice(0,10)]));
+  const items: ScheduleItem[] = view.items.map(item => ({
+    id: item.id,
+    taskId: item.taskId,
+    title: item.title,
+    status: item.status,
+    projectTitle: item.projectTitle,
+    locationColor: item.locationColor,
+    priority: item.priority,
+    estimatedMinutes: item.estimatedMinutes,
+    dailyGoalMinutes: item.dailyGoalMinutes,
+    projectId: item.projectId,
+    areaId: item.areaId,
+    repeat: item.repeat,
+    scheduledDates: item.repeat==="none"
+      ? [...new Set(item.taskId?(scheduledByTask.get(item.taskId)??[selectedKey]):[selectedKey])].sort()
+      : [item.taskId?(repeatStartByTask.get(item.taskId)??selectedKey):selectedKey],
+  }));
+  const searchItems: ScheduleSearchItem[] = [
+    ...items.map(item => ({
+      id: item.taskId ?? item.id,
+      title: item.title,
+      color: item.locationColor,
+      kind: "task" as const,
+      meta: item.projectTitle ?? (locale === "ko" ? "수집함" : "Inbox"),
+      href: "/tasks",
+    })),
+    ...taskProjects.map(project => ({ id: project.id, title: project.title, color: project.color, kind: "project" as const, meta: locale === "ko" ? "프로젝트" : "Project", href: `/projects?project=${project.id}` })),
+    ...taskAreas.map(area => ({ id: area.id, title: area.title, color: area.color, kind: "area" as const, meta: locale === "ko" ? "영역" : "Area", href: `/areas?area=${area.id}` })),
+  ];
+  return <ApprovedSchedulePresentation
+    locale={locale}
+    selectedKey={selectedKey}
+    todayKey={todayKey}
+    monthKey={monthKey}
+    monthLabel={new Intl.DateTimeFormat(locale === "ko" ? "ko-KR" : "en-CA", { timeZone: "UTC", year: "numeric", month: "long" }).format(monthStart)}
+    monthOffset={monthStart.getUTCDay()}
+    previousMonth={previousMonth.toISOString().slice(0, 7)}
+    nextMonth={nextMonth.toISOString().slice(0, 7)}
+    title={isToday
+      ? (locale === "ko" ? "오늘의 일정" : "Today's schedule")
+      : locale === "ko"
+        ? `${Number(selectedKey.slice(5,7))}월 ${Number(selectedKey.slice(8))}일 일정`
+        : `Schedule for ${new Intl.DateTimeFormat("en-CA",{timeZone:"UTC",month:"long",day:"numeric"}).format(dateKeyToDate(selectedKey))}`}
+    eyebrow={formatWorkdayDate(view.workdayDate, locale)}
+    items={items}
+    days={days}
+    totalSeconds={view.totalSeconds}
+    actionable={actionable}
+    removedItemId={params.removed}
+    options={options}
+    searchItems={searchItems}
+    onComplete={completeScheduleItem}
+    onStartFocus={startScheduleFocus}
+    onRemove={removeScheduleItem}
+    onUndoRemove={undoScheduleRemoval}
+    onCreateTask={createScheduleTask}
+    onUpdateTask={updateScheduleTask}
+    onDeleteTask={deleteScheduleTask}
+    onArchiveTask={archiveScheduleTask}
+    onReorder={reorderScheduleItem}
+    onLocaleChange={changeScheduleLocale}
+    onSignOut={signOutFromSchedule}
+    recordedFocusSeconds={Number.isFinite(Number(params.focused))?Math.max(0,Number(params.focused)):undefined}
+  />;
 }
