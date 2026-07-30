@@ -395,6 +395,7 @@ svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7;
 .modal-layer { position:fixed; inset:0; z-index:200; display:grid; place-items:center; padding:14px; }
 .modal-backdrop { position:absolute; inset:0; border:0; background:rgba(38,49,59,.22); backdrop-filter:blur(2px); }
 .modal { position:relative; z-index:1; display:grid; grid-template-rows:auto minmax(0,1fr) auto; width:min(510px,100%); max-height:min(720px,calc(100vh - 28px)); overflow:hidden; border-radius:20px; background:#fff; box-shadow:0 28px 85px rgba(38,49,59,.2); }
+.task-modal { width:min(450px,100%); }
 .small-modal { width:min(390px,100%); }
 .modal>header { display:flex; align-items:flex-start; justify-content:space-between; gap:15px; padding:19px 20px 14px; border-bottom:1px solid var(--line); }
 .modal h2 { margin:0; font-size:17px; font-weight:600; }.modal header p { margin:5px 0 0; color:var(--sub); font-size:10px; }
@@ -432,7 +433,7 @@ svg { width:18px; height:18px; fill:none; stroke:currentColor; stroke-width:1.7;
 .estimate-fields input::-webkit-inner-spin-button { appearance:none; }
 .estimate-fields label span { padding-right:10px; color:var(--sub); font-size:10px; }
 .presets { display:flex; grid-column:1/-1; gap:5px; }
-.presets button { padding:7px 9px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--sub); font-size:10px; }
+.presets button { min-width:0; flex:1; padding:7px 4px; border:1px solid var(--line); border-radius:9px; background:#fff; color:var(--sub); font-size:10px; white-space:nowrap; }
 .presets button.is-active { border-color:var(--sky); background:var(--sky-soft); color:var(--ink); }
 .priority-options,.schedule-options { display:grid; grid-template-columns:repeat(3,1fr); gap:6px; }
 .schedule-options { grid-template-columns:1fr 1fr; }
